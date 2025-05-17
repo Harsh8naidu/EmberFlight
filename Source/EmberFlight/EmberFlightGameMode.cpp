@@ -11,4 +11,11 @@ AEmberFlightGameMode::AEmberFlightGameMode()
 	{
 		DefaultPawnClass = PlayerPawnBPClass.Class;
 	}
+
+    // Initialize Wind Field
+    WindFieldInstance = NewObject<UWindVectorField>(this);
+    if (WindFieldInstance)
+    {
+        WindFieldInstance->Initialize(30, 30, 30, 100.0f);
+    }
 }

@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "WindVectorField.h"
 #include "EmberFlightGameMode.generated.h"
-
 UCLASS(minimalapi)
 class AEmberFlightGameMode : public AGameModeBase
 {
@@ -13,7 +13,6 @@ class AEmberFlightGameMode : public AGameModeBase
 
 public:
 	AEmberFlightGameMode();
+    UPROPERTY(BlueprintReadOnly, Category="Wind Field")
+    UWindVectorField* WindFieldInstance;
 };
-
-
-

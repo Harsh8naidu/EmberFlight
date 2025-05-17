@@ -3,18 +3,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-/**
- * 
- */
-class EMBERFLIGHT_API WindVectorField
+#include "UObject/Object.h"
+#include "WindVectorField.generated.h"
+UCLASS(Blueprintable)
+class EMBERFLIGHT_API UWindVectorField : public UObject
 {
+    GENERATED_BODY()
+
 public:
-	WindVectorField(int InSizeX, int InSizeY, int InSizeZ, float InCellSize);
+	UWindVectorField();
+
+    UFUNCTION(BlueprintCallable, Category="Wind Field")
+    void Initialize(int InSizeX, int InSizeY, int InSizeZ, float InCellSize);
 
     void Update(float DeltaTime);
 
     void InjectWindAtPosition(const FVector& WorldPos, const FVector& VelocityToInject, float Radius);
+    UFUNCTION(BlueprintCallable, Category="Wind Field")
     FVector SampleWindAtPosition(const FVector& WorldPos) const;
 	
 private:

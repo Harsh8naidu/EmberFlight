@@ -3,25 +3,31 @@
 
 #include "WindVectorField.h"
 
-WindVectorField::WindVectorField(int InSizeX, int InSizeY, int InSizeZ, float InCellSize)
-    : SizeX(InSizeX), SizeY(InSizeZ), SizeZ(InSizeZ), CellSize(InCellSize)
+UWindVectorField::UWindVectorField() {}
+
+void UWindVectorField::Initialize(int InSizeX, int InSizeY, int InSizeZ, float InCellSize)
 {
+    SizeX = InSizeX;
+    SizeY = InSizeY;
+    SizeZ = InSizeZ;
+    CellSize = InCellSize;
+
     VelocityGrid.SetNumZeroed(SizeX * SizeY * SizeZ);
 }
 
-int WindVectorField::GetIndex(int X, int Y, int Z) const
+int UWindVectorField::GetIndex(int X, int Y, int Z) const
 {
     return X + Y * SizeX + Z * SizeX * SizeY;
 }
 
-bool WindVectorField::IsValidIndex(int X, int Y, int Z) const
+bool UWindVectorField::IsValidIndex(int X, int Y, int Z) const
 {
     return X >= 0 && X < SizeX &&
            Y >= 0 && Y < SizeY &&
            Z >= 0 && Z < SizeZ;
 }
 
-void WindVectorField::Advect(float DeltaTime)
+void UWindVectorField::Advect(float DeltaTime)
 {
     // Temporary array to hold new velocities after advection
     TArray<FVector> NewVelocityGrid;
@@ -54,7 +60,7 @@ void WindVectorField::Advect(float DeltaTime)
     VelocityGrid = NewVelocityGrid;
 }
 
-void WindVectorField::DecayVelocity(float DeltaTime)
+void UWindVectorField::DecayVelocity(float DeltaTime)
 {
     float decayRate = 1.0f; // Adjust this to control how fast wind slows down
 
@@ -64,7 +70,7 @@ void WindVectorField::DecayVelocity(float DeltaTime)
     }
 }
 
-FVector const WindVectorField::SampleVelocityAtGridPosition(const FVector& GridPos) const
+FVector const UWindVectorField::SampleVelocityAtGridPosition(const FVector& GridPos) const
 {
     // GridPos components can be fractional
     int x0 = FMath::FloorToInt(GridPos.X);
@@ -115,13 +121,13 @@ FVector const WindVectorField::SampleVelocityAtGridPosition(const FVector& GridP
     return c;
 }
 
-void WindVectorField::Update(float DeltaTime)
+void UWindVectorField::Update(float DeltaTime)
 {
     Advect(DeltaTime);
     DecayVelocity(DeltaTime);
 }
 
-void WindVectorField::InjectWindAtPosition(const FVector& WorldPos, const FVector& VelocityToInject, float Radius)
+void UWindVectorField::InjectWindAtPosition(const FVector& WorldPos, const FVector& VelocityToInject, float Radius)
 {
     // Convert world pos to grid coordinates
     FVector GridPosF = WorldPos / CellSize;
@@ -155,7 +161,7 @@ void WindVectorField::InjectWindAtPosition(const FVector& WorldPos, const FVecto
     }
 }
 
-FVector WindVectorField::SampleWindAtPosition(const FVector& WorldPos) const
+FVector UWindVectorField::SampleWindAtPosition(const FVector& WorldPos) const
 {
     FVector GridPos = WorldPos / CellSize;
     return SampleVelocityAtGridPosition(GridPos);
