@@ -13,6 +13,9 @@ class AEmberFlightGameMode : public AGameModeBase
 
 public:
 	AEmberFlightGameMode();
-    UPROPERTY(BlueprintReadOnly, Category="Wind Field")
+
+    virtual void BeginPlay() override;
+
+    UPROPERTY(BlueprintReadWrite, Category="Wind Field")
     UWindVectorField* WindFieldInstance;
 };

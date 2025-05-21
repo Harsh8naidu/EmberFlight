@@ -50,9 +50,9 @@ void UWindVectorField::Advect(float DeltaTime)
                 FVector gridPos = prevPos / CellSize;
 
                 // Trilinear interpolation for velocity at prevPos
-                //FVector advectedVelocity = SampleVelocityAtGridPosition(gridPos);
+                FVector advectedVelocity = SampleVelocityAtGridPosition(gridPos);
 
-                //NewVelocityGrid[idx] = advectedVelocity;
+                NewVelocityGrid[idx] = advectedVelocity;
             }
         }
     }
@@ -144,12 +144,12 @@ void UWindVectorField::InjectWindAtPosition(const FVector& WorldPos, const FVect
     {
         for (int y = minY; y <= maxY; ++y) 
         {
-            for (int x = minX; z <= maxX; ++x) 
+            for (int x = minX; x <= maxX; ++x) 
             {
                 FVector cellCenter = FVector(x, y, z) * CellSize + FVector(CellSize * 0.5f);
                 float dist = FVector::Dist(cellCenter, WorldPos);
 
-                if (dist <= Radius)
+                if (dist <= Radius && IsValidIndex(x, y, z))
                 {
                     int idx = GetIndex(x, y, z);
                     // Add velocity scaled by how close cell is to center
@@ -165,4 +165,28 @@ FVector UWindVectorField::SampleWindAtPosition(const FVector& WorldPos) const
 {
     FVector GridPos = WorldPos / CellSize;
     return SampleVelocityAtGridPosition(GridPos);
+}
+
+void UWindVectorField::DebugDraw(float Scale) const
+{
+    UWorld* World = GetWorld(); // get world from the UObject base
+    if (!World) return;
+
+    for (int z = 0; z < SizeZ; ++z)
+    {
+        for (int y = 0; y < SizeY; ++y)
+        {
+            for (int x = 0; x < SizeX; ++x)
+            {
+                int Index = GetIndex(x, y, z);
+                FVector Start = FVector(x, y, z) * CellSize;
+                FVector Velocity = VelocityGrid[Index];
+
+                FVector End = Start + (Velocity * Scale);
+                
+                //DrawDebugLine(World, Start, End, FColor::Cyan, false, -1, 0, 2.0f);
+                DrawDebugDirectionalArrow(World, Start, End, 50.0, FColor::Blue, false, -1, 0, 1.5f);
+            }
+        }
+    }
 }

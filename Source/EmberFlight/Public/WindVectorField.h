@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "DrawDebugHelpers.h"
 #include "WindVectorField.generated.h"
 UCLASS(Blueprintable)
 class EMBERFLIGHT_API UWindVectorField : public UObject
@@ -18,9 +19,12 @@ public:
 
     void Update(float DeltaTime);
 
+    UFUNCTION(BlueprintCallable, Category = "Wind Field")
     void InjectWindAtPosition(const FVector& WorldPos, const FVector& VelocityToInject, float Radius);
     UFUNCTION(BlueprintCallable, Category="Wind Field")
     FVector SampleWindAtPosition(const FVector& WorldPos) const;
+    UFUNCTION(BlueprintCallable, Category="Wind Field")
+    void DebugDraw(float Scale = 100.0f) const;
 	
 private:
     int SizeX, SizeY, SizeZ;
