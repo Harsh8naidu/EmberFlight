@@ -16,9 +16,8 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Wind Field")
     void Initialize(int InSizeX, int InSizeY, int InSizeZ, float InCellSize);
-
+    UFUNCTION(BlueprintCallable, Category="Wind Field")
     void Update(float DeltaTime);
-
     UFUNCTION(BlueprintCallable, Category = "Wind Field")
     void InjectWindAtPosition(const FVector& WorldPos, const FVector& VelocityToInject, float Radius);
     UFUNCTION(BlueprintCallable, Category="Wind Field")
