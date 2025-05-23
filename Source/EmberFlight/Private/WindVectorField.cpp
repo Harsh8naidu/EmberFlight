@@ -139,13 +139,23 @@ void UWindVectorField::Update(float DeltaTime)
                 int Index = GetIndex(X, Y, Z);
                 FVector PosWorld = FVector(X, Y, Z) * CellSize;
 
-                // Sample noise in X and Z directions
-                float NoiseX = Noise.GetNoise((float)X, (float)Y, (float)Z);
-                float NoiseY = Noise.GetNoise((float)Y + 1000, (float)Y + 1000, (float)Z);
-                float NoiseZ = Noise.GetNoise((float)X + 2000, (float)Y + 2000, (float)Z + 2000);
+                // Main wind direction (steady flow): forward and slightly up
+                FVector WindBias = FVector(0.01f, 0.0f, 0.001f); // forward + slightly up
 
-                FVector WindVelocity = FVector(NoiseX, 0.0f, NoiseZ) * WindScale;
-                VelocityGrid[Index] = WindVelocity;
+                // Sample noise for turbulence
+                float NoiseScale = 0.01f; // lower = larger features
+                float TurbX = Noise.GetNoise((float)X * NoiseScale, (float)Y * NoiseScale, (float)Z * NoiseScale);
+                float TurbY = Noise.GetNoise((float)X * NoiseScale + 1000, (float)Y * NoiseScale + 1000, (float)Z * NoiseScale + 1000);
+                float TurbZ = Noise.GetNoise((float)X * NoiseScale + 2000, (float)Y * NoiseScale + 2000, (float)Z * NoiseScale + 2000);
+
+                // Make turbulence gentle
+                FVector Turbulence = FVector(TurbX, TurbY, TurbZ) * 0.2f;
+
+                // Combine steady bias and turbulence
+                FVector WindVelocity = (WindBias + Turbulence) * WindScale;
+
+                // Apply to velocity grid
+                VelocityGrid[Index] += WindVelocity * DeltaTime;
             }
         }
     }
