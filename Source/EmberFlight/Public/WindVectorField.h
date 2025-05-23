@@ -1,10 +1,10 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
-
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "DrawDebugHelpers.h"
+#include "FastNoiseLite.h"
 #include "WindVectorField.generated.h"
 UCLASS(Blueprintable)
 class EMBERFLIGHT_API UWindVectorField : public UObject
@@ -24,7 +24,13 @@ public:
     FVector SampleWindAtPosition(const FVector& WorldPos) const;
     UFUNCTION(BlueprintCallable, Category="Wind Field")
     void DebugDraw(float Scale = 100.0f) const;
-	
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field")
+    float WindNoiseFrequency = 0.01f;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field")
+    float WindNoiseSeed = 1337;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field")
+    float WindScale = 300.0f;
+
 private:
     int SizeX, SizeY, SizeZ;
     float CellSize;
@@ -36,4 +42,6 @@ private:
     void Advect(float DeltaTime);
     void DecayVelocity(float DeltaTime);
     FVector const SampleVelocityAtGridPosition(const FVector& GridPos) const;
+
+    FastNoiseLite Noise;
 };

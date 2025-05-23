@@ -13,6 +13,10 @@ void UWindVectorField::Initialize(int InSizeX, int InSizeY, int InSizeZ, float I
     CellSize = InCellSize;
 
     VelocityGrid.SetNumZeroed(SizeX * SizeY * SizeZ);
+
+    Noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+    Noise.SetFrequency(WindNoiseFrequency);
+    Noise.SetSeed(WindNoiseSeed);
 }
 
 int UWindVectorField::GetIndex(int X, int Y, int Z) const
@@ -125,6 +129,26 @@ void UWindVectorField::Update(float DeltaTime)
 {
     Advect(DeltaTime);
     DecayVelocity(DeltaTime);
+
+    for (int Z = 0; Z < SizeZ; ++Z)
+    {
+        for (int Y = 0; Y < SizeY; ++Y)
+        {
+            for (int X = 0; X < SizeX; ++X)
+            {
+                int Index = GetIndex(X, Y, Z);
+                FVector PosWorld = FVector(X, Y, Z) * CellSize;
+
+                // Sample noise in X and Z directions
+                float NoiseX = Noise.GetNoise((float)X, (float)Y, (float)Z);
+                float NoiseY = Noise.GetNoise((float)Y + 1000, (float)Y + 1000, (float)Z);
+                float NoiseZ = Noise.GetNoise((float)X + 2000, (float)Y + 2000, (float)Z + 2000);
+
+                FVector WindVelocity = FVector(NoiseX, 0.0f, NoiseZ) * WindScale;
+                VelocityGrid[Index] = WindVelocity;
+            }
+        }
+    }
 }
 
 void UWindVectorField::InjectWindAtPosition(const FVector& WorldPos, const FVector& VelocityToInject, float Radius)
