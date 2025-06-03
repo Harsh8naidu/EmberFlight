@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EmberFlightGameMode.h"
+#include "EmberFlight.h"
 #include "UObject/ConstructorHelpers.h"
 
 AEmberFlightGameMode::AEmberFlightGameMode()
@@ -16,6 +17,7 @@ AEmberFlightGameMode::AEmberFlightGameMode()
 void AEmberFlightGameMode::BeginPlay()
 {
     Super::BeginPlay();
+    ListAllNiagaraInterfaces();
 
     // Initialize Wind Field
     WindFieldInstance = NewObject<UWindVectorField>(this);
