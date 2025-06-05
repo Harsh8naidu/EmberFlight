@@ -16,6 +16,12 @@ UNiagaraDataInterfaceWindField::UNiagaraDataInterfaceWindField()
 void UNiagaraDataInterfaceWindField::SampleWindAtLocation(FVectorVMExternalFunctionContext& Context)
 {
     VectorVM::FUserPtrHandler<const UWindVectorField> FieldHandler(Context);
+    if (!FieldHandler.Get())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("UNiagaraDataInterfaceWindField::SampleWindAtLocation called with invalid FieldHandler."));
+        return;
+    }
+    
     VectorVM::FExternalFuncInputHandler<float> X(Context);
     VectorVM::FExternalFuncInputHandler<float> Y(Context);
     VectorVM::FExternalFuncInputHandler<float> Z(Context);
@@ -41,15 +47,20 @@ void UNiagaraDataInterfaceWindField::GetFunctions(TArray<FNiagaraFunctionSignatu
 {
     FNiagaraFunctionSignature Sig;
     Sig.Name = SampleWindFieldName;
+
     Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Wind Field")));
     Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("X")));
     Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Y")));
     Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Z")));
+
     Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("OutX")));
     Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("OutY")));
     Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("OutZ")));
+
     Sig.SetDescription(LOCTEXT("SampleWindDesc", "Sample wind velocity at a given world position"));
-    Sig.bMemberFunction = true;
+
+    Sig.bMemberFunction = false;
+    Sig.bSupportsCPU = true;
 
     OutFunctions.Add(Sig);
 }
