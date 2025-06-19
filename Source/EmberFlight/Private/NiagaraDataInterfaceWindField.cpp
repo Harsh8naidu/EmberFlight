@@ -15,53 +15,60 @@ UNiagaraDataInterfaceWindField::UNiagaraDataInterfaceWindField()
 
 void UNiagaraDataInterfaceWindField::SampleWindAtLocation(FVectorVMExternalFunctionContext& Context)
 {
-    VectorVM::FUserPtrHandler<const UWindVectorField> FieldHandler(Context);
-    if (!FieldHandler.Get())
+    UE_LOG(LogTemp, Warning, TEXT("Sample Wind At Locations called"));
+    VectorVM::FUserPtrHandler<FNDIWindFieldInstanceData> InstanceData(Context);
+    if (!InstanceData.Get() || !InstanceData.Get()->WindField)
     {
         UE_LOG(LogTemp, Warning, TEXT("UNiagaraDataInterfaceWindField::SampleWindAtLocation called with invalid FieldHandler."));
         return;
     }
     
-    VectorVM::FExternalFuncInputHandler<float> X(Context);
-    VectorVM::FExternalFuncInputHandler<float> Y(Context);
-    VectorVM::FExternalFuncInputHandler<float> Z(Context);
+    FNDIInputParam<float> X(Context);
+    FNDIInputParam<float> Y(Context);
+    FNDIInputParam<float> Z(Context);
 
-    VectorVM::FExternalFuncRegisterHandler<float> OutX(Context);
-    VectorVM::FExternalFuncRegisterHandler<float> OutY(Context);
-    VectorVM::FExternalFuncRegisterHandler<float> OutZ(Context);
+    FNDIOutputParam<float> OutX(Context);
+    FNDIOutputParam<float> OutY(Context);
+    FNDIOutputParam<float> OutZ(Context);
 
-    const UWindVectorField* SampledField = FieldHandler.Get();
+    const int32 NumInstances = Context.GetNumInstances();
 
-    for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+    for (int32 i = 0; i < NumInstances; ++i)
     {
         FVector WorldPos(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance());
-        FVector Velocity = SampledField ? SampledField->SampleWindAtPosition(WorldPos) : FVector::ZeroVector;
+        FVector Velocity = InstanceData.Get()->WindField->SampleWindAtPosition(WorldPos);
 
-        *OutX.GetDestAndAdvance() = Velocity.X;
-        *OutY.GetDestAndAdvance() = Velocity.Y;
-        *OutZ.GetDestAndAdvance() = Velocity.Z;
+        OutX.SetAndAdvance(Velocity.X);
+        OutY.SetAndAdvance(Velocity.Y);
+        OutZ.SetAndAdvance(Velocity.Z);
     }
 }
 
 void UNiagaraDataInterfaceWindField::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
+    UE_LOG(LogTemp, Warning, TEXT("Get Functions called"));
     FNiagaraFunctionSignature Sig;
     Sig.Name = SampleWindFieldName;
 
-    Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Wind Field")));
+    // Add the inputs of the data interface class
+    Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("WindField")));
+
+    // Add float position inputs
     Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("X")));
     Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Y")));
     Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Z")));
 
+    // Add float outputs
     Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("OutX")));
     Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("OutY")));
     Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("OutZ")));
 
-    Sig.SetDescription(LOCTEXT("SampleWindDesc", "Sample wind velocity at a given world position"));
-
-    Sig.bMemberFunction = false;
+    Sig.bMemberFunction = true;
+    Sig.bRequiresContext = false;
     Sig.bSupportsCPU = true;
 
+    Sig.SetDescription(LOCTEXT("SampleWindDesc", "Sample wind velocity at a given world position"));
+    
     OutFunctions.Add(Sig);
 }
 
@@ -69,40 +76,83 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceWindField, SampleWindAtLocati
 
 void UNiagaraDataInterfaceWindField::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc)
 {
+    UE_LOG(LogTemp, Warning, TEXT("Trying to bind: %s"), *BindingInfo.Name.ToString());
     if (BindingInfo.Name == SampleWindFieldName)
     {
         NDI_FUNC_BINDER(UNiagaraDataInterfaceWindField, SampleWindAtLocation)::Bind(this, OutFunc);
+        UE_LOG(LogTemp, Warning, TEXT("Bound SampleWindAtLocation successfully!"));
     }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("FAILED to bind: %s"), *BindingInfo.Name.ToString());
+    }
+}
+
+bool UNiagaraDataInterfaceWindField::CopyToInternal(UNiagaraDataInterface* Destination) const
+{
+    UE_LOG(LogTemp, Warning, TEXT("CopyToInternal called"));
+    UNiagaraDataInterfaceWindField* DestTyped = Cast<UNiagaraDataInterfaceWindField>(Destination);
+    if (!DestTyped)
+    {
+        return false;
+    }
+
+    DestTyped->WindField = this->WindField;
+
+    return true;
 }
 
 bool UNiagaraDataInterfaceWindField::Equals(const UNiagaraDataInterface* Other) const
 {
+    UE_LOG(LogTemp, Warning, TEXT("Equals Called"));
     const UNiagaraDataInterfaceWindField* OtherTyped = CastChecked<UNiagaraDataInterfaceWindField>(Other);
     return OtherTyped && OtherTyped->WindField == WindField;
 }
 
 bool UNiagaraDataInterfaceWindField::CanExecuteOnTarget(ENiagaraSimTarget Target) const
 {
+    UE_LOG(LogTemp, Warning, TEXT("Can Execute on Target called"));
     return Target == ENiagaraSimTarget::CPUSim;
 }
 
 void UNiagaraDataInterfaceWindField::PostInitProperties()
-{
+{   
+    UE_LOG(LogTemp, Warning, TEXT("Post init properties called"));
     Super::PostInitProperties();
 
-    UE_LOG(LogTemp, Warning, TEXT("UNiagaraDataInterfaceWindField::PostInitProperties called."));
     if (HasAnyFlags(RF_ClassDefaultObject))
     {
         ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable | ENiagaraTypeRegistryFlags::AllowParameter;
         FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), Flags);
-        UE_LOG(LogTemp, Warning, TEXT("If condition executed inside postinitproperties"));
-
     }
+    MarkRenderDataDirty();
+}
+
+int32 UNiagaraDataInterfaceWindField::PerInstanceDataSize() const
+{
+    UE_LOG(LogTemp, Warning, TEXT("Per Instance Data Size called"));
+    return sizeof(FNDIWindFieldInstanceData);
+}
+
+bool UNiagaraDataInterfaceWindField::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
+{
+    UE_LOG(LogTemp, Warning, TEXT("Init Per Instance Data"));
+    FNDIWindFieldInstanceData* InstanceData = new (PerInstanceData) FNDIWindFieldInstanceData();
+    InstanceData->WindField = WindField;
+    return true;
+}
+
+void UNiagaraDataInterfaceWindField::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
+{
+    UE_LOG(LogTemp, Warning, TEXT("Destroy Per Instance Data"));
+    FNDIWindFieldInstanceData* InstanceData = (FNDIWindFieldInstanceData*)PerInstanceData;
+    InstanceData->~FNDIWindFieldInstanceData();
 }
 
 #if WITH_EDITOR
 void UNiagaraDataInterfaceWindField::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
+    UE_LOG(LogTemp, Warning, TEXT("Post Edit Change Property"));
     Super::PostEditChangeProperty(PropertyChangedEvent);
     MarkRenderDataDirty();
 }

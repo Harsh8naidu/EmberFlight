@@ -1,6 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "WindVectorField.h"
 
 UWindVectorField::UWindVectorField() {}
@@ -76,6 +75,13 @@ void UWindVectorField::DecayVelocity(float DeltaTime)
 
 FVector const UWindVectorField::SampleVelocityAtGridPosition(const FVector& GridPos) const
 {
+    // Ensure grid in initialized
+    if (VelocityGrid.Num() == 0 || SizeX <= 1 || SizeY <= 1 || SizeZ <= 1)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SampleVelocityAtGridPosition called with uninitialized or too small grid"));
+        return FVector::ZeroVector;
+    }
+
     // GridPos components can be fractional
     int x0 = FMath::FloorToInt(GridPos.X);
     int y0 = FMath::FloorToInt(GridPos.Y);
@@ -85,12 +91,7 @@ FVector const UWindVectorField::SampleVelocityAtGridPosition(const FVector& Grid
     int y1 = y0 + 1;
     int z1 = z0 + 1;
 
-    // Fractional distance within the cell
-    float sx = GridPos.X - x0;
-    float sy = GridPos.Y - y0;
-    float sz = GridPos.Z - z0;
-
-    // Clamp indices
+    // Clamp indices to enure they're within bounds
     x0 = FMath::Clamp(x0, 0, SizeX - 1);
     y0 = FMath::Clamp(y0, 0, SizeY - 1);
     z0 = FMath::Clamp(z0, 0, SizeZ - 1);
@@ -99,15 +100,26 @@ FVector const UWindVectorField::SampleVelocityAtGridPosition(const FVector& Grid
     y1 = FMath::Clamp(y1, 0, SizeY - 1);
     z1 = FMath::Clamp(z1, 0, SizeZ - 1);
 
+    // Ensure all indices are still valid
+    auto SafeGet = [&](int X, int Y, int Z)
+    {
+        return IsValidIndex(X, Y, Z) ? VelocityGrid[GetIndex(X, Y, Z)] : FVector::ZeroVector;
+    };
+
     // Get Velocity at corners
-    FVector c000 = VelocityGrid[GetIndex(x0, y0, z0)];
-    FVector c100 = VelocityGrid[GetIndex(x1, y0, z0)];
-    FVector c010 = VelocityGrid[GetIndex(x0, y1, z0)];
-    FVector c110 = VelocityGrid[GetIndex(x1, y1, z0)];
-    FVector c001 = VelocityGrid[GetIndex(x0, y0, z1)];
-    FVector c101 = VelocityGrid[GetIndex(x1, y0, z1)];
-    FVector c011 = VelocityGrid[GetIndex(x0, y1, z1)];
-    FVector c111 = VelocityGrid[GetIndex(x1, y1, z1)];
+    FVector c000 = SafeGet(x0, y0, z0);
+    FVector c100 = SafeGet(x1, y0, z0);
+    FVector c010 = SafeGet(x0, y1, z0);
+    FVector c110 = SafeGet(x1, y1, z0);
+    FVector c001 = SafeGet(x0, y0, z1);
+    FVector c101 = SafeGet(x1, y0, z1);
+    FVector c011 = SafeGet(x0, y1, z1);
+    FVector c111 = SafeGet(x1, y1, z1);
+
+    // Fractional distance within the cell
+    float sx = GridPos.X - x0;
+    float sy = GridPos.Y - y0;
+    float sz = GridPos.Z - z0;
 
     // Interpolate along X
     FVector c00 = FMath::Lerp(c000, c100, sx);
@@ -197,6 +209,12 @@ void UWindVectorField::InjectWindAtPosition(const FVector& WorldPos, const FVect
 
 FVector UWindVectorField::SampleWindAtPosition(const FVector& WorldPos) const
 {
+    if (VelocityGrid.Num() == 0 || SizeX <= 1 || SizeY <= 1 || SizeZ <= 1)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SampleWindAtPosition called on uninitialized field."));
+        return FVector::ZeroVector;
+    }
+
     FVector GridPos = WorldPos / CellSize;
     return SampleVelocityAtGridPosition(GridPos);
 }

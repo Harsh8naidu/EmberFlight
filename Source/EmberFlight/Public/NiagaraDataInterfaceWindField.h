@@ -7,7 +7,7 @@
 #include "WindVectorField.h"
 #include "NiagaraDataInterfaceWindField.generated.h"
 
-UCLASS(EditInlineNew, Category = "Wind", meta = (DisplayName = "Wind Field", NiagaraDataInterface = "True"), Blueprintable, BlueprintType)
+UCLASS(EditInlineNew, Category = "Wind", meta = (DisplayName = "WindField", NiagaraDataInterface = "True"), Blueprintable, BlueprintType)
 class EMBERFLIGHT_API UNiagaraDataInterfaceWindField : public UNiagaraDataInterface
 {
     GENERATED_BODY()
@@ -21,9 +21,13 @@ public:
     // Niagara interface overrides
     virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
     virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc) override;
+    virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
     virtual bool Equals(const UNiagaraDataInterface* Other) const override;
     virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override;
     virtual void PostInitProperties() override;
+    virtual int32 PerInstanceDataSize() const override;
+    virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
+    virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 #if WITH_EDITOR
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
@@ -31,4 +35,14 @@ public:
     // Optional: convenience function (not used by Niagara VM)
     UFUNCTION(BlueprintCallable, Category = "Wind")
     FVector GetZeroWind() const { return FVector::ZeroVector; }
+};
+
+// Per-instance data struct
+USTRUCT()
+struct FNDIWindFieldInstanceData
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    UWindVectorField* WindField = nullptr;
 };

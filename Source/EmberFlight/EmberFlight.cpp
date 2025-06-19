@@ -6,24 +6,32 @@
 #include "NiagaraDataInterface.h"
 #include "UObject/UObjectIterator.h"
 #include "Modules/ModuleManager.h"
+#include <IAssetTools.h>
+#include <AssetToolsModule.h>
+#include "AssetTypeActions_WindVectorField.h"
 
-IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, EmberFlight, "EmberFlight" );
+IMPLEMENT_PRIMARY_GAME_MODULE(FEmberFlightModule, EmberFlight, "EmberFlight" );
 
+#if WITH_EDITOR
 void FEmberFlightModule::StartupModule()
 {
-    
+    UE_LOG(LogTemp, Warning, TEXT("Found Startup Module"));
+    IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+    AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_WindVectorField));
 }
 
 void FEmberFlightModule::ShutdownModule()
 {
     
 }
+#endif
 
 void ListAllNiagaraInterfaces()
 {
     static const FName TempClassName = UNiagaraDataInterfaceWindField::StaticClass()->GetFName();
 
-    for (TObjectIterator<UClass> It; It; ++It)
+   /* for (TObjectIterator<UClass> It; It; ++It)
     {
         if (It->IsChildOf(UNiagaraDataInterface::StaticClass()) && !It->HasAnyClassFlags(CLASS_Abstract))
         {
@@ -31,5 +39,5 @@ void ListAllNiagaraInterfaces()
         }
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("Wind DI class is: %s"), *UNiagaraDataInterfaceWindField::StaticClass()->GetName());
+    UE_LOG(LogTemp, Warning, TEXT("Wind DI class is: %s"), *UNiagaraDataInterfaceWindField::StaticClass()->GetName());*/
 }
