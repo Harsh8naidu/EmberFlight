@@ -18,6 +18,16 @@ void UWindVectorField::Initialize(int InSizeX, int InSizeY, int InSizeZ, float I
     Noise.SetSeed(WindNoiseSeed);
 }
 
+void UWindVectorField::PostLoad()
+{
+    Super::PostLoad();
+
+    if (VelocityGrid.Num() == 0)
+    {
+        Initialize(30, 30, 30, 100.0f);
+    }
+}
+
 int UWindVectorField::GetIndex(int X, int Y, int Z) const
 {
     return X + Y * SizeX + Z * SizeX * SizeY;
@@ -211,7 +221,7 @@ FVector UWindVectorField::SampleWindAtPosition(const FVector& WorldPos) const
 {
     if (VelocityGrid.Num() == 0 || SizeX <= 1 || SizeY <= 1 || SizeZ <= 1)
     {
-        UE_LOG(LogTemp, Warning, TEXT("SampleWindAtPosition called on uninitialized field."));
+        UE_LOG(LogTemp, Warning, TEXT("SampleWindAtPosition called on uninitialized field. Asset name: %s"), *GetNameSafe(this));
         return FVector::ZeroVector;
     }
 

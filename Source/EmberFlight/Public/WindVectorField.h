@@ -36,6 +36,7 @@ private:
 
     TArray<FVector> VelocityGrid;
 
+    virtual void PostLoad() override;
     int GetIndex(int X, int Y, int Z) const;
     bool IsValidIndex(int X, int Y, int Z) const;
     void Advect(float DeltaTime);
