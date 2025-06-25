@@ -15,7 +15,7 @@ UNiagaraDataInterfaceWindField::UNiagaraDataInterfaceWindField()
 
 void UNiagaraDataInterfaceWindField::SampleWindAtLocation(FVectorVMExternalFunctionContext& Context)
 {
-    UE_LOG(LogTemp, Warning, TEXT("Sample Wind At Locations called"));
+    //UE_LOG(LogTemp, Warning, TEXT("Sample Wind At Locations called"));
     VectorVM::FUserPtrHandler<FNDIWindFieldInstanceData> InstanceData(Context);
     if (!InstanceData.Get() || !InstanceData.Get()->WindField)
     {
@@ -37,6 +37,8 @@ void UNiagaraDataInterfaceWindField::SampleWindAtLocation(FVectorVMExternalFunct
     {
         FVector WorldPos(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance());
         FVector Velocity = InstanceData.Get()->WindField->SampleWindAtPosition(WorldPos);
+
+        //UE_LOG(LogTemp, Warning, TEXT("[Niagara] WindSample Velocity: X=%f Y=%f Z=%f"), Velocity.X, Velocity.Y, Velocity.Z);
 
         OutX.SetAndAdvance(Velocity.X);
         OutY.SetAndAdvance(Velocity.Y);

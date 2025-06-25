@@ -2,7 +2,13 @@
 
 #include "WindVectorField.h"
 
-UWindVectorField::UWindVectorField() {}
+UWindVectorField::UWindVectorField() 
+{
+    if (VelocityGrid.Num() == 0)
+    {
+        Initialize(32, 32, 32, 100.f);
+    }
+}
 
 void UWindVectorField::Initialize(int InSizeX, int InSizeY, int InSizeZ, float InCellSize)
 {
@@ -24,7 +30,13 @@ void UWindVectorField::PostLoad()
 
     if (VelocityGrid.Num() == 0)
     {
+        UE_LOG(LogTemp, Warning, TEXT("PostLoad: Initializing wind field"));
         Initialize(30, 30, 30, 100.0f);
+    }
+
+    for (int i = 0; i < 10; i++)
+    {
+        Update(0.016f);
     }
 }
 
@@ -144,6 +156,8 @@ FVector const UWindVectorField::SampleVelocityAtGridPosition(const FVector& Grid
     // Interpolate along Z
     FVector c = FMath::Lerp(c0, c1, sz);
 
+    //UE_LOG(LogTemp, Warning, TEXT("SampleWindAtPosition called on initialized field. Asset name: %s"), *GetNameSafe(this));
+
     return c;
 }
 
@@ -162,7 +176,7 @@ void UWindVectorField::Update(float DeltaTime)
                 FVector PosWorld = FVector(X, Y, Z) * CellSize;
 
                 // Main wind direction (steady flow): forward and slightly up
-                FVector WindBias = FVector(0.01f, 0.0f, 0.001f); // forward + slightly up
+                FVector WindBias = FVector(1.0f, 0.0f, 0.1f); // forward + slightly up
 
                 // Sample noise for turbulence
                 float NoiseScale = 0.01f; // lower = larger features
