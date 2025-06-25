@@ -17,7 +17,7 @@ AEmberFlightGameMode::AEmberFlightGameMode()
 void AEmberFlightGameMode::BeginPlay()
 {
     Super::BeginPlay();
-    ListAllNiagaraInterfaces();
+    //ListAllNiagaraInterfaces(); // Uncomment this line to list all the niagara interfaces (including the custom ones)
 
     // Initialize Wind Field
     WindFieldInstance = NewObject<UWindVectorField>(this);

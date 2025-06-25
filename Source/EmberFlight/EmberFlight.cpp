@@ -31,7 +31,7 @@ void ListAllNiagaraInterfaces()
 {
     static const FName TempClassName = UNiagaraDataInterfaceWindField::StaticClass()->GetFName();
 
-   /* for (TObjectIterator<UClass> It; It; ++It)
+    for (TObjectIterator<UClass> It; It; ++It)
     {
         if (It->IsChildOf(UNiagaraDataInterface::StaticClass()) && !It->HasAnyClassFlags(CLASS_Abstract))
         {
@@ -39,5 +39,5 @@ void ListAllNiagaraInterfaces()
         }
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("Wind DI class is: %s"), *UNiagaraDataInterfaceWindField::StaticClass()->GetName());*/
+    UE_LOG(LogTemp, Warning, TEXT("Wind DI class is: %s"), *UNiagaraDataInterfaceWindField::StaticClass()->GetName());
 }
