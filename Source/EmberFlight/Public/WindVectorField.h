@@ -5,7 +5,7 @@
 #include "DrawDebugHelpers.h"
 #include "FastNoiseLite.h"
 #include "WindVectorField.generated.h"
-UCLASS(Blueprintable)
+UCLASS(Blueprintable, EditInlineNew, DefaultToInstanced)
 class EMBERFLIGHT_API UWindVectorField : public UObject
 {
     GENERATED_BODY()
@@ -14,7 +14,7 @@ public:
 	UWindVectorField();
 
     UFUNCTION(BlueprintCallable, Category="Wind Field")
-    void Initialize(int InSizeX, int InSizeY, int InSizeZ, float InCellSize);
+    void Initialize();
     UFUNCTION(BlueprintCallable, Category="Wind Field")
     void Update(float DeltaTime);
     UFUNCTION(BlueprintCallable, Category = "Wind Field")
@@ -23,25 +23,47 @@ public:
     FVector SampleWindAtPosition(const FVector& WorldPos) const;
     UFUNCTION(BlueprintCallable, Category="Wind Field")
     void DebugDraw(float Scale = 100.0f) const;
+
+    // ======= Editable Parameters =======
+
+    // Grid size
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field|Grid")
+    int32 SizeX = 30;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field|Grid")
+    int32 SizeY = 30;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field|Grid")
+    int32 SizeZ = 30;
+
+    // World-space cell size
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field|Grid")
+    float CellSize = 100.0f;
+
+    // Noise properties
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field")
     float WindNoiseFrequency = 0.01f;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field")
     float WindNoiseSeed = 1337;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field")
+
+    // Wind strength
     float WindScale = 300.0f;
 
-private:
-    int SizeX, SizeY, SizeZ;
-    float CellSize;
+protected:
+    virtual void PostLoad() override;
 
+private:
+    // Simulation grid
     TArray<FVector> VelocityGrid;
 
-    virtual void PostLoad() override;
+    // Noise generator
+    FastNoiseLite Noise;
+    
+    // Helpers
     int GetIndex(int X, int Y, int Z) const;
     bool IsValidIndex(int X, int Y, int Z) const;
     void Advect(float DeltaTime);
     void DecayVelocity(float DeltaTime);
     FVector const SampleVelocityAtGridPosition(const FVector& GridPos) const;
-
-    FastNoiseLite Noise;
 };

@@ -4,21 +4,12 @@
 
 UWindVectorField::UWindVectorField() 
 {
-    if (VelocityGrid.Num() == 0)
-    {
-        Initialize(32, 32, 32, 100.f);
-    }
+    
 }
 
-void UWindVectorField::Initialize(int InSizeX, int InSizeY, int InSizeZ, float InCellSize)
+void UWindVectorField::Initialize()
 {
-    SizeX = InSizeX;
-    SizeY = InSizeY;
-    SizeZ = InSizeZ;
-    CellSize = InCellSize;
-
     VelocityGrid.SetNumZeroed(SizeX * SizeY * SizeZ);
-
     Noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
     Noise.SetFrequency(WindNoiseFrequency);
     Noise.SetSeed(WindNoiseSeed);
@@ -31,7 +22,7 @@ void UWindVectorField::PostLoad()
     if (VelocityGrid.Num() == 0)
     {
         UE_LOG(LogTemp, Warning, TEXT("PostLoad: Initializing wind field"));
-        Initialize(30, 30, 30, 100.0f);
+        Initialize();
     }
 
     for (int i = 0; i < 10; i++)

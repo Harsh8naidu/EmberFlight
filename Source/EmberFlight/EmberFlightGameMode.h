@@ -16,6 +16,6 @@ public:
 
     virtual void BeginPlay() override;
 
-    UPROPERTY(BlueprintReadWrite, Category="Wind Field")
+    UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category="Wind Field")
     UWindVectorField* WindFieldInstance;
 };
