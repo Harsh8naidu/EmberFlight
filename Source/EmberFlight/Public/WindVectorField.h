@@ -45,15 +45,29 @@ public:
     float WindNoiseFrequency = 0.01f;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field")
     float WindNoiseSeed = 1337;
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field")
 
-    // Wind strength
+    /** Strength multiplier for wind velocity overall */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field")
     float WindScale = 300.0f;
+
+    /** Base wind direction (world space, normalized, can be set per field) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field", meta = (ToolTip = "Base wind direction (world space, normalized, can be set per field)"))
+    FVector WindBias = FVector(1.0f, 0.0f, 0.1f);
+    
+    /** Amount of noise-based turbulence applied to the wind */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field", meta = (ToolTip = "Amount of noise-based turbulence applied to the wind"))
+    float TurbulenceStrength = 0.2f;
+
+    /** Scale for noise pattern – lower = wider noise waves */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field", meta = (ToolTip = "Controls how spread out the noise features are (lower = larger features)."))
+    float NoiseScale = 0.01f;
 
 protected:
     virtual void PostLoad() override;
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 private:
+    bool bInitialized = false;
     // Simulation grid
     TArray<FVector> VelocityGrid;
 

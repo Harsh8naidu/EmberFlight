@@ -9,10 +9,26 @@ UWindVectorField::UWindVectorField()
 
 void UWindVectorField::Initialize()
 {
+    if (bInitialized || SizeX <= 0 || SizeY <= 0 || SizeZ <= 0 || CellSize <= 0.0f)
+    {
+        return;
+    }
+
     VelocityGrid.SetNumZeroed(SizeX * SizeY * SizeZ);
+
     Noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
     Noise.SetFrequency(WindNoiseFrequency);
     Noise.SetSeed(WindNoiseSeed);
+
+    // Warmup wind field
+    const int WarmUpFrames = 10;
+    const float FixedDeltaTime = 0.016f;
+    for (int i = 0; i < WarmUpFrames; ++i)
+    {
+        Update(FixedDeltaTime);
+    }
+
+    bInitialized = true;
 }
 
 void UWindVectorField::PostLoad()
@@ -25,10 +41,10 @@ void UWindVectorField::PostLoad()
         Initialize();
     }
 
-    for (int i = 0; i < 10; i++)
+    /*for (int i = 0; i < 10; i++)
     {
         Update(0.016f);
-    }
+    }*/
 }
 
 int UWindVectorField::GetIndex(int X, int Y, int Z) const
@@ -154,6 +170,12 @@ FVector const UWindVectorField::SampleVelocityAtGridPosition(const FVector& Grid
 
 void UWindVectorField::Update(float DeltaTime)
 {
+    if (VelocityGrid.Num() == 0)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[WindField] Update called before Initialize! Skipping update."));
+        return;
+    }
+
     Advect(DeltaTime);
     DecayVelocity(DeltaTime);
 
@@ -166,17 +188,13 @@ void UWindVectorField::Update(float DeltaTime)
                 int Index = GetIndex(X, Y, Z);
                 FVector PosWorld = FVector(X, Y, Z) * CellSize;
 
-                // Main wind direction (steady flow): forward and slightly up
-                FVector WindBias = FVector(1.0f, 0.0f, 0.1f); // forward + slightly up
-
                 // Sample noise for turbulence
-                float NoiseScale = 0.01f; // lower = larger features
                 float TurbX = Noise.GetNoise((float)X * NoiseScale, (float)Y * NoiseScale, (float)Z * NoiseScale);
                 float TurbY = Noise.GetNoise((float)X * NoiseScale + 1000, (float)Y * NoiseScale + 1000, (float)Z * NoiseScale + 1000);
                 float TurbZ = Noise.GetNoise((float)X * NoiseScale + 2000, (float)Y * NoiseScale + 2000, (float)Z * NoiseScale + 2000);
 
                 // Make turbulence gentle
-                FVector Turbulence = FVector(TurbX, TurbY, TurbZ) * 0.2f;
+                FVector Turbulence = FVector(TurbX, TurbY, TurbZ) * TurbulenceStrength;
 
                 // Combine steady bias and turbulence
                 FVector WindVelocity = (WindBias + Turbulence) * WindScale;
@@ -257,3 +275,16 @@ void UWindVectorField::DebugDraw(float Scale) const
         }
     }
 }
+
+#if WITH_EDITOR
+void UWindVectorField::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+    Super::PostEditChangeProperty(PropertyChangedEvent);
+
+    bInitialized = false;
+    // Re-initialize the internal data
+    Initialize();
+
+    MarkPackageDirty();
+}
+#endif
