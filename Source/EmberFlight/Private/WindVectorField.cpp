@@ -40,11 +40,6 @@ void UWindVectorField::PostLoad()
         UE_LOG(LogTemp, Warning, TEXT("PostLoad: Initializing wind field"));
         Initialize();
     }
-
-    /*for (int i = 0; i < 10; i++)
-    {
-        Update(0.016f);
-    }*/
 }
 
 int UWindVectorField::GetIndex(int X, int Y, int Z) const
@@ -282,9 +277,11 @@ void UWindVectorField::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
     Super::PostEditChangeProperty(PropertyChangedEvent);
 
     bInitialized = false;
-    // Re-initialize the internal data
+
+    // Re-initialize wind data
     Initialize();
 
+    // Mark the asset as modified
     MarkPackageDirty();
 }
 #endif
