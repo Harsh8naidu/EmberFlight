@@ -174,6 +174,8 @@ void UWindVectorField::Update(float DeltaTime)
     Advect(DeltaTime);
     DecayVelocity(DeltaTime);
 
+    float Time = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+
     for (int Z = 0; Z < SizeZ; ++Z)
     {
         for (int Y = 0; Y < SizeY; ++Y)
@@ -187,6 +189,23 @@ void UWindVectorField::Update(float DeltaTime)
                 float TurbX = Noise.GetNoise((float)X * NoiseScale, (float)Y * NoiseScale, (float)Z * NoiseScale);
                 float TurbY = Noise.GetNoise((float)X * NoiseScale + 1000, (float)Y * NoiseScale + 1000, (float)Z * NoiseScale + 1000);
                 float TurbZ = Noise.GetNoise((float)X * NoiseScale + 2000, (float)Y * NoiseScale + 2000, (float)Z * NoiseScale + 2000);
+
+                if (bIncreasing)
+                {
+                    TurbulenceStrength += 0.1f;
+                    if (TurbulenceStrength >= MaxTurbulence)
+                    {
+                        bIncreasing = false;
+                    }
+                }
+                else
+                {
+                    TurbulenceStrength -= 0.1f;
+                    if (TurbulenceStrength <= -MaxTurbulence)
+                    {
+                        bIncreasing = true;
+                    }
+                }
 
                 // Make turbulence gentle
                 FVector Turbulence = FVector(TurbX, TurbY, TurbZ) * TurbulenceStrength;

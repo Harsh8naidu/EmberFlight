@@ -67,6 +67,8 @@ protected:
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 private:
+    float MaxTurbulence = 20.0;
+    bool bIncreasing = false;
     bool bInitialized = false;
     // Simulation grid
     TArray<FVector> VelocityGrid;
