@@ -190,23 +190,6 @@ void UWindVectorField::Update(float DeltaTime)
                 float TurbY = Noise.GetNoise((float)X * NoiseScale + 1000, (float)Y * NoiseScale + 1000, (float)Z * NoiseScale + 1000);
                 float TurbZ = Noise.GetNoise((float)X * NoiseScale + 2000, (float)Y * NoiseScale + 2000, (float)Z * NoiseScale + 2000);
 
-                if (bIncreasing)
-                {
-                    TurbulenceStrength += 0.1f;
-                    if (TurbulenceStrength >= MaxTurbulence)
-                    {
-                        bIncreasing = false;
-                    }
-                }
-                else
-                {
-                    TurbulenceStrength -= 0.1f;
-                    if (TurbulenceStrength <= -MaxTurbulence)
-                    {
-                        bIncreasing = true;
-                    }
-                }
-
                 // Make turbulence gentle
                 FVector Turbulence = FVector(TurbX, TurbY, TurbZ) * TurbulenceStrength;
 
