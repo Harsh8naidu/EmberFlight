@@ -26,6 +26,10 @@ public:
 
     // ======= Editable Parameters =======
 
+    // Grid Position at Start
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Wind Field")
+    FVector Origin = FVector::ZeroVector;
+
     // Grid size
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field|Grid")
     int32 SizeX = 30;
@@ -82,4 +86,5 @@ private:
     void Advect(float DeltaTime);
     void DecayVelocity(float DeltaTime);
     FVector const SampleVelocityAtGridPosition(const FVector& GridPos) const;
+    FVector GetPhoenixPosition() const;
 };

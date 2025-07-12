@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "WindVectorField.h"
+#include "EngineUtils.h"
 
 UWindVectorField::UWindVectorField() 
 {
@@ -249,25 +250,63 @@ FVector UWindVectorField::SampleWindAtPosition(const FVector& WorldPos) const
     return SampleVelocityAtGridPosition(GridPos);
 }
 
+FVector UWindVectorField::GetPhoenixPosition() const
+{
+    UWorld* World = GetWorld();
+    if (!World) return FVector::ZeroVector;
+
+    // Get the BP_Character (Phoenix) by tag
+    for (TActorIterator<AActor> It(World); It; ++It) {
+        AActor* Actor = *It;
+        if (Actor && Actor->ActorHasTag("Phoenix"))
+        {
+            return Actor->GetActorLocation();
+        }
+    }
+
+    return FVector::ZeroVector;
+}
+
 void UWindVectorField::DebugDraw(float Scale) const
 {
     UWorld* World = GetWorld(); // get world from the UObject base
     if (!World) return;
 
-    for (int z = 0; z < SizeZ; ++z)
+    FVector PhoenixPos = GetPhoenixPosition();
+    UE_LOG(LogTemp, Warning, TEXT("Phoenix Position: %s"), *PhoenixPos.ToString());
+    
+    float MaxDrawDistance = 3000.0f;
+    int Step = 3;
+    int ArrowsDrawn = 0;
+
+    FVector GridOrigin = PhoenixPos - FVector(SizeX, SizeY, SizeZ) * 0.5f * CellSize;
+
+    // Snap GridOrigin to nearest multiple of CellSize
+    /*GridOrigin.X = FMath::GridSnap(GridOrigin.X, CellSize);
+    GridOrigin.Y = FMath::GridSnap(GridOrigin.Y, CellSize);
+    GridOrigin.Z = FMath::GridSnap(GridOrigin.Z, CellSize);*/
+
+    for (int z = 0; z < SizeZ; z += Step)
     {
-        for (int y = 0; y < SizeY; ++y)
+        for (int y = 0; y < SizeY; y += Step)
         {
-            for (int x = 0; x < SizeX; ++x)
+            for (int x = 0; x < SizeX; x += Step)
             {
                 int Index = GetIndex(x, y, z);
-                FVector Start = FVector(x, y, z) * CellSize;
-                FVector Velocity = VelocityGrid[Index];
+                FVector Start = GridOrigin + FVector(x, y, z) * CellSize;
 
-                FVector End = Start + (Velocity * Scale);
+                FVector Velocity = VelocityGrid[Index];
+                if (Velocity.IsNearlyZero()) continue;
+
+                FVector End = Start + (Velocity * Scale * 0.1f);
+
+                if (ArrowsDrawn < 10)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("Start: %s, End: %s, Velocity: %s"), *Start.ToString(), *End.ToString(), *Velocity.ToString());
+                }
                 
-                //DrawDebugLine(World, Start, End, FColor::Cyan, false, -1, 0, 2.0f);
-                DrawDebugDirectionalArrow(World, Start, End, 50.0, FColor::Blue, false, -1, 0, 1.5f);
+                DrawDebugDirectionalArrow(World, Start, End, 50.0, FColor::Blue, false, -0.5f, 0, 1.0f);
+                ArrowsDrawn++;
             }
         }
     }
