@@ -204,10 +204,12 @@ void UWindVectorField::Update(float DeltaTime)
     }
 }
 
-void UWindVectorField::InjectWindAtPosition(const FVector& WorldPos, const FVector& VelocityToInject, float Radius)
+void UWindVectorField::InjectWindAtPosition(const FVector& WorldPos, const FVector& VelocityToInject, const FVector& FieldOrigin,float Radius)
 {
     // Convert world pos to grid coordinates
-    FVector GridPosF = WorldPos / CellSize;
+    FVector LocalWorldPos = WorldPos - FieldOrigin;
+    //UE_LOG(LogTemp, Warning, TEXT("Injecting at LocalWorldPos: %s"), *LocalWorldPos.ToString());
+    FVector GridPosF = LocalWorldPos / CellSize;
 
     // Calculate the affected grid cells within radius
     int minX = FMath::Clamp(FMath::FloorToInt(GridPosF.X - Radius / CellSize), 0, SizeX - 1);
@@ -216,18 +218,19 @@ void UWindVectorField::InjectWindAtPosition(const FVector& WorldPos, const FVect
     int maxY = FMath::Clamp(FMath::CeilToInt(GridPosF.Y + Radius / CellSize), 0, SizeY - 1);
     int minZ = FMath::Clamp(FMath::FloorToInt(GridPosF.Z - Radius / CellSize), 0, SizeZ - 1);
     int maxZ = FMath::Clamp(FMath::CeilToInt(GridPosF.Z + Radius / CellSize), 0, SizeZ - 1);
-
+    
     for (int z = minZ; z <= maxZ; ++z)
     {
         for (int y = minY; y <= maxY; ++y) 
         {
             for (int x = minX; x <= maxX; ++x) 
             {
-                FVector cellCenter = FVector(x, y, z) * CellSize + FVector(CellSize * 0.5f);
-                float dist = FVector::Dist(cellCenter, WorldPos);
+                FVector cellCenterLocal = FVector(x, y, z) * CellSize + FVector(CellSize * 0.5f);
+                float dist = FVector::Dist(cellCenterLocal, LocalWorldPos);
 
                 if (dist <= Radius && IsValidIndex(x, y, z))
                 {
+                    //UE_LOG(LogTemp, Warning, TEXT("velocity injected successfully"));
                     int idx = GetIndex(x, y, z);
                     // Add velocity scaled by how close cell is to center
                     float strength = 1.0f - (dist / Radius);
@@ -277,8 +280,6 @@ void UWindVectorField::DebugDraw(float Scale) const
     
     float MaxDrawDistance = 3000.0f;
     int Step = 3;
-    int ArrowsDrawn = 0;
-
     FVector GridOrigin = PhoenixPos - FVector(SizeX, SizeY, SizeZ) * 0.5f * CellSize;
 
     // Snap GridOrigin to nearest multiple of CellSize
@@ -300,13 +301,7 @@ void UWindVectorField::DebugDraw(float Scale) const
 
                 FVector End = Start + (Velocity * Scale * 0.1f);
 
-                if (ArrowsDrawn < 10)
-                {
-                    UE_LOG(LogTemp, Warning, TEXT("Start: %s, End: %s, Velocity: %s"), *Start.ToString(), *End.ToString(), *Velocity.ToString());
-                }
-                
                 DrawDebugDirectionalArrow(World, Start, End, 50.0, FColor::Blue, false, -0.5f, 0, 1.0f);
-                ArrowsDrawn++;
             }
         }
     }

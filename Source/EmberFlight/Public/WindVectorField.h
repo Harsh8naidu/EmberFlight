@@ -18,17 +18,15 @@ public:
     UFUNCTION(BlueprintCallable, Category="Wind Field")
     void Update(float DeltaTime);
     UFUNCTION(BlueprintCallable, Category = "Wind Field")
-    void InjectWindAtPosition(const FVector& WorldPos, const FVector& VelocityToInject, float Radius);
+    void InjectWindAtPosition(const FVector& WorldPos, const FVector& VelocityToInject, const FVector& FieldOrigin, float Radius);
     UFUNCTION(BlueprintCallable, Category="Wind Field")
     FVector SampleWindAtPosition(const FVector& WorldPos) const;
     UFUNCTION(BlueprintCallable, Category="Wind Field")
     void DebugDraw(float Scale = 100.0f) const;
 
-    // ======= Editable Parameters =======
+    void DebugDrawWindField(const FVector& InjectorLocation, const FVector& FieldOrigin,float Radius, UWorld* World) const;
 
-    // Grid Position at Start
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Wind Field")
-    FVector Origin = FVector::ZeroVector;
+    // ======= Editable Parameters =======
 
     // Grid size
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field|Grid")
