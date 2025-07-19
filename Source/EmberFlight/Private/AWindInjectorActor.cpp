@@ -6,14 +6,14 @@
 AWindInjectorActor::AWindInjectorActor()
 {
     PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bStartWithTickEnabled = true;
     SetActorTickEnabled(true);
-    
-    FieldOrigin = GetActorLocation();
 }
 
 void AWindInjectorActor::BeginPlay()
 {
     Super::BeginPlay();
+    
     FieldOrigin = GetActorLocation();
 }
 
@@ -21,15 +21,6 @@ void AWindInjectorActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     Super::EndPlay(EndPlayReason);
     WindField = nullptr;
-}
-
-void AWindInjectorActor::ShowDebugSphere()
-{
-    if (bShowDebugSphere && GetWorld())
-    {
-        DrawDebugSphere(GetWorld(), FieldOrigin, Radius, 16, FColor::Red, false, 1.0f, 0, 2.0f);
-        UE_LOG(LogTemp, Warning, TEXT("Debug Sphere Drawn At: %s | Radius: %f"), *GetActorLocation().ToString(), Radius);
-    }
 }
 
 void AWindInjectorActor::Tick(float DeltaTime)
@@ -40,6 +31,25 @@ void AWindInjectorActor::Tick(float DeltaTime)
     {
         WindField->InjectWindAtPosition(GetActorLocation(), VelocityToInject, FieldOrigin, Radius);
     }
+
+#if WITH_EDITOR
+    if (IsInEditorMode() && bShowDebugSphereAlwaysInEditor)
+    {
+        ShowDebugSphere(true, 0.0f);
+    }
+#endif
+
+    if (!IsInEditorMode() && bShowDebugSphereInPlayMode)
+    {
+        ShowDebugSphere(false, 0.1f);
+    }
+}
+
+void AWindInjectorActor::ShowDebugSphere(bool persistentSphere, float lifetime)
+{
+    if (!GetWorld()) return;
+    
+    DrawDebugSphere(GetWorld(), FieldOrigin, Radius * 2.6, 16, FColor::Red, persistentSphere, lifetime, 0, 2.0f);
 }
 
 #if WITH_EDITOR
@@ -47,7 +57,45 @@ void AWindInjectorActor::PostEditMove(bool bFinished)
 {
     Super::PostEditMove(bFinished);
 
+    FlushPersistentDebugLines(GetWorld());
     FieldOrigin = GetActorLocation();
-    //UE_LOG(LogTemp, Warning, TEXT("FieldOrigin updated after move to: %s"), FieldOrigin.ToString());
+    DrawTemporaryDebugSphere();
+}
+
+void AWindInjectorActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+    Super::PostEditChangeProperty(PropertyChangedEvent);
+    FlushPersistentDebugLines(GetWorld());
+    FieldOrigin = GetActorLocation();
+    DrawTemporaryDebugSphere();
+}
+#endif
+
+void AWindInjectorActor::OnConstruction(const FTransform& Transform)
+{
+    Super::OnConstruction(Transform);
+
+    FieldOrigin = GetActorLocation();
+    DrawTemporaryDebugSphere();
+}
+
+void AWindInjectorActor::DrawTemporaryDebugSphere()
+{
+    ShowDebugSphere(false, 0.1f);
+}
+
+bool AWindInjectorActor::IsInEditorMode() const
+{
+#if WITH_EDITOR
+    return GIsEditor && !GetWorld()->IsGameWorld();
+#else
+    return false;
+#endif
+}
+
+#if WITH_EDITOR
+bool AWindInjectorActor::ShouldTickIfViewportsOnly() const
+{
+    return true;
 }
 #endif

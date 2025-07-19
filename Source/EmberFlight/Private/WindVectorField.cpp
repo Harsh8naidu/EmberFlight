@@ -206,9 +206,7 @@ void UWindVectorField::Update(float DeltaTime)
 
 void UWindVectorField::InjectWindAtPosition(const FVector& WorldPos, const FVector& VelocityToInject, const FVector& FieldOrigin,float Radius)
 {
-    // Convert world pos to grid coordinates
     FVector LocalWorldPos = WorldPos - FieldOrigin;
-    //UE_LOG(LogTemp, Warning, TEXT("Injecting at LocalWorldPos: %s"), *LocalWorldPos.ToString());
     FVector GridPosF = LocalWorldPos / CellSize;
 
     // Calculate the affected grid cells within radius
@@ -230,7 +228,6 @@ void UWindVectorField::InjectWindAtPosition(const FVector& WorldPos, const FVect
 
                 if (dist <= Radius && IsValidIndex(x, y, z))
                 {
-                    //UE_LOG(LogTemp, Warning, TEXT("velocity injected successfully"));
                     int idx = GetIndex(x, y, z);
                     // Add velocity scaled by how close cell is to center
                     float strength = 1.0f - (dist / Radius);
@@ -281,11 +278,6 @@ void UWindVectorField::DebugDraw(float Scale) const
     float MaxDrawDistance = 3000.0f;
     int Step = 3;
     FVector GridOrigin = PhoenixPos - FVector(SizeX, SizeY, SizeZ) * 0.5f * CellSize;
-
-    // Snap GridOrigin to nearest multiple of CellSize
-    /*GridOrigin.X = FMath::GridSnap(GridOrigin.X, CellSize);
-    GridOrigin.Y = FMath::GridSnap(GridOrigin.Y, CellSize);
-    GridOrigin.Z = FMath::GridSnap(GridOrigin.Z, CellSize);*/
 
     for (int z = 0; z < SizeZ; z += Step)
     {

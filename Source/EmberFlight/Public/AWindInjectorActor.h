@@ -1,10 +1,9 @@
 #pragma once
 #include "CoreMinimal.h"  
-#include "GameFramework/Actor.h" // Include this to ensure AActor is properly defined  
-#include "WindVectorField.h" // Ensure this header file defines UWindVectorField properly  
+#include "GameFramework/Actor.h"  
+#include "WindVectorField.h"  
 
-#include "AWindInjectorActor.generated.h"  
-
+#include "AWindInjectorActor.generated.h"
 UCLASS()  
 class EMBERFLIGHT_API AWindInjectorActor : public AActor  
 {  
@@ -28,17 +27,27 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Injector")  
     TObjectPtr<class UWindVectorField> WindField;  
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
-    bool bShowDebugSphere = false;
-
     UFUNCTION(BlueprintCallable, Category = "Debug")
-    void ShowDebugSphere();
+    void ShowDebugSphere(bool persistentSphere, float lifetime);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
+    bool bShowDebugSphereInPlayMode = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
+    bool bShowDebugSphereAlwaysInEditor = false;
 
 protected:  
     virtual void Tick(float DeltaTime) override;  
     virtual void BeginPlay() override;  
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void PostEditMove(bool bFinished);
+    virtual void OnConstruction(const FTransform& Transform);
+    void DrawTemporaryDebugSphere();
+    bool IsInEditorMode() const;
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
+#if WITH_EDITOR
+    virtual bool ShouldTickIfViewportsOnly() const override;
+#endif
 
 private:
     float TimeSinceLastInjection = 0.0f;

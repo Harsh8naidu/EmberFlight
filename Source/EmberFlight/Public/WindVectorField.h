@@ -24,8 +24,6 @@ public:
     UFUNCTION(BlueprintCallable, Category="Wind Field")
     void DebugDraw(float Scale = 100.0f) const;
 
-    void DebugDrawWindField(const FVector& InjectorLocation, const FVector& FieldOrigin,float Radius, UWorld* World) const;
-
     // ======= Editable Parameters =======
 
     // Grid size
@@ -45,6 +43,7 @@ public:
     // Noise properties
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field")
     float WindNoiseFrequency = 0.01f;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field")
     float WindNoiseSeed = 1337;
 
@@ -72,6 +71,8 @@ private:
     float MaxTurbulence = 20.0;
     bool bIncreasing = false;
     bool bInitialized = false;
+    bool isDone = false;
+
     // Simulation grid
     TArray<FVector> VelocityGrid;
 
