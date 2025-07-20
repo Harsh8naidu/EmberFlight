@@ -24,6 +24,8 @@ public:
     UFUNCTION(BlueprintCallable, Category="Wind Field")
     void DebugDraw(float Scale = 100.0f) const;
 
+    void ResetField();
+
     // ======= Editable Parameters =======
 
     // Grid size

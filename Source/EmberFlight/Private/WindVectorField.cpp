@@ -299,6 +299,13 @@ void UWindVectorField::DebugDraw(float Scale) const
     }
 }
 
+void UWindVectorField::ResetField()
+{
+    VelocityGrid.Empty();
+    VelocityGrid.SetNumZeroed(SizeX * SizeY * SizeZ);
+    Initialize();
+}
+
 #if WITH_EDITOR
 void UWindVectorField::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -306,8 +313,7 @@ void UWindVectorField::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 
     bInitialized = false;
 
-    // Re-initialize wind data
-    Initialize();
+    ResetField();
 
     // Mark the asset as modified
     MarkPackageDirty();

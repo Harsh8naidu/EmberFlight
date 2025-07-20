@@ -76,7 +76,7 @@ void AWindInjectorActor::OnConstruction(const FTransform& Transform)
     Super::OnConstruction(Transform);
 
     FieldOrigin = GetActorLocation();
-    DrawTemporaryDebugSphere();
+    //DrawTemporaryDebugSphere();
 }
 
 void AWindInjectorActor::DrawTemporaryDebugSphere()

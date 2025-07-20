@@ -48,7 +48,6 @@ void UNiagaraDataInterfaceWindField::SampleWindAtLocation(FVectorVMExternalFunct
 
 void UNiagaraDataInterfaceWindField::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
-    UE_LOG(LogTemp, Warning, TEXT("Get Functions called"));
     FNiagaraFunctionSignature Sig;
     Sig.Name = SampleWindFieldName;
 
@@ -78,21 +77,14 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceWindField, SampleWindAtLocati
 
 void UNiagaraDataInterfaceWindField::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc)
 {
-    UE_LOG(LogTemp, Warning, TEXT("Trying to bind: %s"), *BindingInfo.Name.ToString());
     if (BindingInfo.Name == SampleWindFieldName)
     {
         NDI_FUNC_BINDER(UNiagaraDataInterfaceWindField, SampleWindAtLocation)::Bind(this, OutFunc);
-        UE_LOG(LogTemp, Warning, TEXT("Bound SampleWindAtLocation successfully!"));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("FAILED to bind: %s"), *BindingInfo.Name.ToString());
     }
 }
 
 bool UNiagaraDataInterfaceWindField::CopyToInternal(UNiagaraDataInterface* Destination) const
 {
-    UE_LOG(LogTemp, Warning, TEXT("CopyToInternal called"));
     UNiagaraDataInterfaceWindField* DestTyped = Cast<UNiagaraDataInterfaceWindField>(Destination);
     if (!DestTyped)
     {
@@ -106,20 +98,17 @@ bool UNiagaraDataInterfaceWindField::CopyToInternal(UNiagaraDataInterface* Desti
 
 bool UNiagaraDataInterfaceWindField::Equals(const UNiagaraDataInterface* Other) const
 {
-    UE_LOG(LogTemp, Warning, TEXT("Equals Called"));
     const UNiagaraDataInterfaceWindField* OtherTyped = CastChecked<UNiagaraDataInterfaceWindField>(Other);
     return OtherTyped && OtherTyped->WindField == WindField;
 }
 
 bool UNiagaraDataInterfaceWindField::CanExecuteOnTarget(ENiagaraSimTarget Target) const
 {
-    UE_LOG(LogTemp, Warning, TEXT("Can Execute on Target called"));
     return Target == ENiagaraSimTarget::CPUSim;
 }
 
 void UNiagaraDataInterfaceWindField::PostInitProperties()
 {   
-    UE_LOG(LogTemp, Warning, TEXT("Post init properties called"));
     Super::PostInitProperties();
 
     if (HasAnyFlags(RF_ClassDefaultObject))
@@ -132,13 +121,11 @@ void UNiagaraDataInterfaceWindField::PostInitProperties()
 
 int32 UNiagaraDataInterfaceWindField::PerInstanceDataSize() const
 {
-    UE_LOG(LogTemp, Warning, TEXT("Per Instance Data Size called"));
     return sizeof(FNDIWindFieldInstanceData);
 }
 
 bool UNiagaraDataInterfaceWindField::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
-    UE_LOG(LogTemp, Warning, TEXT("Init Per Instance Data"));
     FNDIWindFieldInstanceData* InstanceData = new (PerInstanceData) FNDIWindFieldInstanceData();
     InstanceData->WindField = WindField;
     return true;
@@ -146,7 +133,6 @@ bool UNiagaraDataInterfaceWindField::InitPerInstanceData(void* PerInstanceData, 
 
 void UNiagaraDataInterfaceWindField::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
-    UE_LOG(LogTemp, Warning, TEXT("Destroy Per Instance Data"));
     FNDIWindFieldInstanceData* InstanceData = (FNDIWindFieldInstanceData*)PerInstanceData;
     InstanceData->~FNDIWindFieldInstanceData();
 }
@@ -154,7 +140,6 @@ void UNiagaraDataInterfaceWindField::DestroyPerInstanceData(void* PerInstanceDat
 #if WITH_EDITOR
 void UNiagaraDataInterfaceWindField::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
-    UE_LOG(LogTemp, Warning, TEXT("Post Edit Change Property"));
     Super::PostEditChangeProperty(PropertyChangedEvent);
     MarkRenderDataDirty();
 }
