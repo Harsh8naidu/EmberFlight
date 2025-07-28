@@ -18,7 +18,7 @@ public:
     UFUNCTION(BlueprintCallable, Category="Wind Field")
     void Update(float DeltaTime);
     UFUNCTION(BlueprintCallable, Category = "Wind Field")
-    void InjectWindAtPosition(const FVector& WorldPos, const FVector& VelocityToInject, const FVector& FieldOrigin, float Radius);
+    void InjectWindAtPosition(const FVector& WorldPos, const FVector& VelocityToInject, float Radius);
     UFUNCTION(BlueprintCallable, Category="Wind Field")
     FVector SampleWindAtPosition(const FVector& WorldPos) const;
     UFUNCTION(BlueprintCallable, Category="Wind Field")
@@ -26,7 +26,12 @@ public:
 
     void ResetField();
 
+    TArray<FVector> GetVelocityGrid() const { return VelocityGrid; }
+
     // ======= Editable Parameters =======
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field|Grid")
+    FVector FieldOrigin = FVector::ZeroVector;
 
     // Grid size
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Field|Grid")

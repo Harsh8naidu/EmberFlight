@@ -12,9 +12,6 @@ class EMBERFLIGHT_API AWindInjectorActor : public AActor
 public:  
     AWindInjectorActor();  
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FVector FieldOrigin = FVector::ZeroVector;
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wind Injector")  
     FVector VelocityToInject = FVector(0, 0, 1000);  
 
@@ -50,6 +47,7 @@ protected:
 #endif
 
 private:
+    FVector InjectorLocation = FVector::ZeroVector;
     float TimeSinceLastInjection = 0.0f;
     
     // Controls how often we inject wind (in seconds)

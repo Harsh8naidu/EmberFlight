@@ -204,7 +204,7 @@ void UWindVectorField::Update(float DeltaTime)
     }
 }
 
-void UWindVectorField::InjectWindAtPosition(const FVector& WorldPos, const FVector& VelocityToInject, const FVector& FieldOrigin,float Radius)
+void UWindVectorField::InjectWindAtPosition(const FVector& WorldPos, const FVector& VelocityToInject, float Radius)
 {
     FVector LocalWorldPos = WorldPos - FieldOrigin;
     FVector GridPosF = LocalWorldPos / CellSize;

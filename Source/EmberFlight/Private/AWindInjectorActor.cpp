@@ -14,7 +14,8 @@ void AWindInjectorActor::BeginPlay()
 {
     Super::BeginPlay();
     
-    FieldOrigin = GetActorLocation();
+    InjectorLocation = GetActorLocation();
+    WindField->FieldOrigin = InjectorLocation;
 }
 
 void AWindInjectorActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -27,9 +28,12 @@ void AWindInjectorActor::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
+    InjectorLocation = GetActorLocation();
+
     if (bEnableInjection && WindField)
     {
-        WindField->InjectWindAtPosition(GetActorLocation(), VelocityToInject, FieldOrigin, Radius);
+        WindField->FieldOrigin = InjectorLocation;
+        WindField->InjectWindAtPosition(InjectorLocation, VelocityToInject, Radius);
     }
 
 #if WITH_EDITOR
@@ -49,7 +53,7 @@ void AWindInjectorActor::ShowDebugSphere(bool persistentSphere, float lifetime)
 {
     if (!GetWorld()) return;
     
-    DrawDebugSphere(GetWorld(), FieldOrigin, Radius * 2.6, 16, FColor::Red, persistentSphere, lifetime, 0, 2.0f);
+    DrawDebugSphere(GetWorld(), InjectorLocation, Radius * 2.6, 16, FColor::Red, persistentSphere, lifetime, 0, 2.0f);
 }
 
 #if WITH_EDITOR
@@ -58,7 +62,8 @@ void AWindInjectorActor::PostEditMove(bool bFinished)
     Super::PostEditMove(bFinished);
 
     FlushPersistentDebugLines(GetWorld());
-    FieldOrigin = GetActorLocation();
+    InjectorLocation = GetActorLocation();
+    WindField->FieldOrigin = InjectorLocation;
     DrawTemporaryDebugSphere();
 }
 
@@ -66,7 +71,8 @@ void AWindInjectorActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 {
     Super::PostEditChangeProperty(PropertyChangedEvent);
     FlushPersistentDebugLines(GetWorld());
-    FieldOrigin = GetActorLocation();
+    InjectorLocation = GetActorLocation();
+    WindField->FieldOrigin = InjectorLocation;
     DrawTemporaryDebugSphere();
 }
 #endif
@@ -75,7 +81,10 @@ void AWindInjectorActor::OnConstruction(const FTransform& Transform)
 {
     Super::OnConstruction(Transform);
 
-    FieldOrigin = GetActorLocation();
+    InjectorLocation = GetActorLocation();
+    if (WindField) {
+        WindField->FieldOrigin = InjectorLocation;
+    }
     //DrawTemporaryDebugSphere();
 }
 
