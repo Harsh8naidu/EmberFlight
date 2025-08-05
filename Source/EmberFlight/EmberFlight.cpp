@@ -3,12 +3,14 @@
 #include "EmberFlight.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceWindField.h"
-#include "NiagaraDataInterface.h"
 #include "UObject/UObjectIterator.h"
 #include "Modules/ModuleManager.h"
-#include <IAssetTools.h>
-#include <AssetToolsModule.h>
+
+#if WITH_EDITOR
+#include "IAssetTools.h"
+#include "AssetToolsModule.h"
 #include "AssetTypeActions_WindVectorField.h"
+#endif
 
 IMPLEMENT_PRIMARY_GAME_MODULE(FEmberFlightModule, EmberFlight, "EmberFlight" );
 

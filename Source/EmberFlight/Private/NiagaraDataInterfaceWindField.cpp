@@ -8,11 +8,17 @@
 #include "NiagaraCompileHashVisitor.h"
 #include "RenderGraphBuilder.h"
 #include <UnifiedBuffer.h>
+#include "RenderGraphUtils.h"
+#include "RenderGraphResources.h"
+#include "NiagaraSystemInstance.h"
+#include "RHIResources.h"
+#include "RHI.h"
+#include "NiagaraRenderer.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraWindFieldDI"
 
 static const FName SampleWindFieldName(TEXT("SampleWindAtLocation"));
-//static const TCHAR* TemplateShaderFilePath = TEXT("EmberFlight/Shaders/Niagara/NiagaraDataInterfaceWindField.ush");
+static const TCHAR* TemplateShaderFilePath = TEXT("/Plugin/Experimental/ChaosNiagara/NiagaraDataInterfaceWindField.ush");
 
 UNiagaraDataInterfaceWindField::UNiagaraDataInterfaceWindField()
 {
@@ -131,24 +137,38 @@ void UNiagaraDataInterfaceWindField::PostInitProperties()
 
 bool UNiagaraDataInterfaceWindField::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
-    return false;
+    FNDIWindFieldInstanceData* InstanceData = static_cast<FNDIWindFieldInstanceData*>(PerInstanceData);
+    if (!InstanceData || !InstanceData->WindField || !InstanceData->InstanceDataOwner)
+        return false;
+
+    FNDIWindFieldData* DataOwner = InstanceData->InstanceDataOwner;
+
+    // Only write into current write buffer
+    int32 WriteIndex = DataOwner->WriteIndex;
+    TArray<FVector4f>& WriteBuffer = DataOwner->VelocityGridBuffers[WriteIndex];
+
+    const TArray<FVector>& SourceGrid = InstanceData->WindField->GetVelocityGrid();
+    WriteBuffer.Reset(SourceGrid.Num());
+
+    for (const FVector& V : SourceGrid)
+    {
+        WriteBuffer.Add(FVector4f(V.X, V.Y, V.Z, 0.0f));
+    }
+
+    return true; // request RT update
 }
 
 bool UNiagaraDataInterfaceWindField::PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* InSystemInstance, float DeltaSeconds)
 {
     FNDIWindFieldInstanceData* InstanceData = static_cast<FNDIWindFieldInstanceData*>(PerInstanceData);
-    if (InstanceData && InstanceData->WindField)
-    {
-        // Copy velocity grid data safely on game thread into InstanceData
-        const TArray<FVector>& SourceGrid = InstanceData->WindField->GetVelocityGrid();
+    if (!InstanceData || !InstanceData->InstanceDataOwner)
+        return false;
 
-        InstanceData->VelocityGrid.Reset();
-        for (const FVector& V : SourceGrid)
-        {
-            InstanceData->VelocityGrid.Add(FVector3f(V));
-        }
-    }
-    return false; // false here means no forced render proxy update every frame
+    // Swap buffers after sim
+    FNDIWindFieldData* DataOwner = InstanceData->InstanceDataOwner;
+    DataOwner->WriteIndex = 1 - DataOwner->WriteIndex;
+
+    return false;
 }
 
 int32 UNiagaraDataInterfaceWindField::PerInstanceDataSize() const
@@ -160,12 +180,54 @@ bool UNiagaraDataInterfaceWindField::InitPerInstanceData(void* PerInstanceData, 
 {
     FNDIWindFieldInstanceData* InstanceData = new (PerInstanceData) FNDIWindFieldInstanceData();
     InstanceData->WindField = WindField;
+
+    if (!WindField || !SystemInstance)
+    {
+        return false;
+    }
+
+    // Create per-instance owner data
+    FNDIWindFieldData* DataOwner = new FNDIWindFieldData();
+    DataOwner->WindField = WindField;
+    InstanceData->InstanceDataOwner = DataOwner;
+
+    // Set field origin to the Niagara system's world location
+    FVector SystemPos = SystemInstance->GetAttachComponent()->GetComponentLocation();
+    WindField->FieldOrigin = SystemPos;
+    /*UE_LOG(LogTemp, Warning, TEXT("[WindField] FieldOrigin set to %s for System %s"),
+        *SystemPos.ToString(), *SystemInstance->GetSystem()->GetName());*/
+
+    // Initialize CPU velocity grids
+    const TArray<FVector>& SourceGrid = WindField->GetVelocityGrid();
+    for (int32 i = 0; i < 2; ++i)
+    {
+        DataOwner->VelocityGridBuffers[i].Reset(); // clear first
+        DataOwner->VelocityGridBuffers[i].Reserve(SourceGrid.Num());
+        for (const FVector& V : SourceGrid)
+        {
+            DataOwner->VelocityGridBuffers[i].Add(FVector4f(V.X, V.Y, V.Z, 0.0f));
+        }
+    }
+    InstanceData->WriteIndex = 0;
+    DataOwner->WriteIndex = 0;
+
+    // Initialize GPU buffer
+    DataOwner->InitializeBufferIfNeeded(SourceGrid.Num());
+
     return true;
 }
 
-void UNiagaraDataInterfaceWindField::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
+void UNiagaraDataInterfaceWindField::DestroyPerInstanceData(
+    void* PerInstanceData,
+    FNiagaraSystemInstance* SystemInstance)
 {
-    FNDIWindFieldInstanceData* InstanceData = (FNDIWindFieldInstanceData*)PerInstanceData;
+    if (!PerInstanceData)
+        return;
+
+    FNDIWindFieldInstanceData* InstanceData =
+        static_cast<FNDIWindFieldInstanceData*>(PerInstanceData);
+
+    // Explicitly call destructor since memory is managed by Niagara
     InstanceData->~FNDIWindFieldInstanceData();
 }
 
@@ -174,7 +236,7 @@ bool UNiagaraDataInterfaceWindField::AppendCompileHash(FNiagaraCompileHashVisito
 {
     bool bSuccess = Super::AppendCompileHash(InVisitor);
 
-    bSuccess &= InVisitor->UpdateShaderFile(TEXT("/Plugin/Experimental/ChaosNiagara/NiagaraDataInterfaceWindField.ush"));
+    bSuccess &= InVisitor->UpdateShaderFile(TemplateShaderFilePath);
     bSuccess &= InVisitor->UpdateShaderParameters<FNDIWindFieldShaderParameters>();
 
     return bSuccess;
@@ -185,7 +247,7 @@ void UNiagaraDataInterfaceWindField::GetParameterDefinitionHLSL(const FNiagaraDa
     const TMap<FString, FStringFormatArg> TemplateArgs = {
         {TEXT("ParameterName"), TEXT(""),} // This will be replaced at compile time by the stuff in .ush
     };
-    AppendTemplateHLSL(OutHLSL, TEXT("/Plugin/Experimental/ChaosNiagara/NiagaraDataInterfaceWindField.ush"), TemplateArgs);
+    AppendTemplateHLSL(OutHLSL, TemplateShaderFilePath, TemplateArgs);
 }
 
 bool UNiagaraDataInterfaceWindField::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
@@ -226,45 +288,75 @@ void UNiagaraDataInterfaceWindField::BuildShaderParameters(FNiagaraShaderParamet
     ShaderParametersBuilder.AddNestedStruct<FNDIWindFieldShaderParameters>();
 }
 
-void UNiagaraDataInterfaceWindField::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+void UNiagaraDataInterfaceWindField::SetShaderParameters(
+    const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
 {
     const FNDIWindFieldProxy& DIProxy = Context.GetProxy<FNDIWindFieldProxy>();
     const FNDIWindFieldRenderData* RenderData = DIProxy.SystemInstancesToProxyData.Find(Context.GetSystemInstanceID());
 
     auto* ShaderParameters = Context.GetParameterNestedStruct<FNDIWindFieldShaderParameters>();
+    if (!RenderData || !ShaderParameters)
+        return;
 
-    
-    if (RenderData && ShaderParameters)
+    // Basic field properties
+    ShaderParameters->User_WindField_FieldOrigin = RenderData->FieldOrigin;
+    ShaderParameters->User_WindField_CellSize = RenderData->CellSize;
+    ShaderParameters->User_WindField_SizeX = RenderData->SizeX;
+    ShaderParameters->User_WindField_SizeY = RenderData->SizeY;
+    ShaderParameters->User_WindField_SizeZ = RenderData->SizeZ;
+
+    // Bind the SRV from our GPU buffer
+    FNDIWindFieldBuffer* Buffer = RenderData->AssetBuffer;
+    ShaderParameters->User_WindField_VelocityGridSRV =
+        FNiagaraRenderer::GetSrvOrDefaultFloat4(Buffer ? Buffer->VelocityGridSRV : nullptr);
+
+#if WITH_EDITOR
+    /*UE_LOG(LogTemp, Warning,
+        TEXT("[WindField] SetShaderParameters: SRV=%p Elements=%d Size=(%d,%d,%d)"),
+        (Buffer && Buffer->VelocityGridSRV.IsValid()) ? Buffer->VelocityGridSRV.GetReference() : nullptr,
+        RenderData->VelocityGridCount,
+        RenderData->SizeX, RenderData->SizeY, RenderData->SizeZ);*/
+
+    if (RenderData->VelocityGridPtr && RenderData->VelocityGridCount > 0)
     {
-        ShaderParameters->User_WindField_FieldOrigin = RenderData->FieldOrigin;
-        ShaderParameters->User_WindField_CellSize = RenderData->CellSize;
-        ShaderParameters->User_WindField_SizeX = RenderData->SizeX;
-        ShaderParameters->User_WindField_SizeY = RenderData->SizeY;
-        ShaderParameters->User_WindField_SizeZ = RenderData->SizeZ;
-
-        if (DIProxy.AssetBuffer.IsValid() && DIProxy.AssetBuffer->VelocityGridBuffer.IsValid())
+        FString Sample;
+        for (int i = 0; i < FMath::Min(3, RenderData->VelocityGridCount); ++i)
         {
-            FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
-            FRDGBufferRef RDGBuffer = GraphBuilder.RegisterExternalBuffer(DIProxy.AssetBuffer->VelocityGridBuffer);
-            ShaderParameters->User_WindField_VelocityGridSRV = GraphBuilder.CreateSRV(RDGBuffer);
+            const FVector4f& V = RenderData->VelocityGridPtr[i];
+            Sample += FString::Printf(TEXT("[%.2f, %.2f, %.2f] "), V.X, V.Y, V.Z);
         }
+        //UE_LOG(LogTemp, Warning, TEXT("[WindField] First 3 GPU buffer samples: %s"), *Sample);
     }
+#endif
 }
 
-void UNiagaraDataInterfaceWindField::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
+void UNiagaraDataInterfaceWindField::ProvidePerInstanceDataForRenderThread(
+    void* DataForRenderThread,
+    void* PerInstanceData,
+    const FNiagaraSystemInstanceID& SystemInstance)
 {
     FNDIWindFieldInstanceData* InstanceData = static_cast<FNDIWindFieldInstanceData*>(PerInstanceData);
     FNDIWindFieldRenderData* RenderData = new (DataForRenderThread) FNDIWindFieldRenderData();
-    
-    if (!InstanceData || !RenderData || InstanceData->VelocityGrid.Num() == 0)
+
+    if (!InstanceData || !InstanceData->InstanceDataOwner)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[WindField] ProvidePerInstanceData skipped: InstanceData or DataOwner null"));
         return;
     }
 
-    if (InstanceData->WindField)
-    {
-        const UWindVectorField* Field = InstanceData->WindField;
+    FNDIWindFieldData* DataOwner = InstanceData->InstanceDataOwner;
 
+    // --- Select the read buffer (double buffering) ---
+    const int32 ReadIndex = 1 - DataOwner->WriteIndex;
+    const TArray<FVector4f>& ReadBuffer = DataOwner->VelocityGridBuffers[ReadIndex];
+
+    // Instead of copying, just pass pointer + size
+    RenderData->VelocityGridPtr = ReadBuffer.GetData();
+    RenderData->VelocityGridCount = ReadBuffer.Num();
+
+    // --- Copy basic field info from the asset ---
+    if (UWindVectorField* Field = DataOwner->WindField)
+    {
         RenderData->FieldOrigin = FVector3f(Field->FieldOrigin);
         RenderData->CellSize = Field->CellSize;
         RenderData->SizeX = Field->SizeX;
@@ -272,14 +364,14 @@ void UNiagaraDataInterfaceWindField::ProvidePerInstanceDataForRenderThread(void*
         RenderData->SizeZ = Field->SizeZ;
     }
 
-    // SAFE COPY:
-    const int32 NumElements = InstanceData->VelocityGrid.Num();
-    RenderData->VelocityGrid.SetNumUninitialized(NumElements);
-    FMemory::Memcpy(
-        RenderData->VelocityGrid.GetData(),
-        InstanceData->VelocityGrid.GetData(),
-        NumElements * sizeof(FVector3f)
-    );
+    // --- AssetBuffer is the raw pointer of the shared buffer ---
+    RenderData->AssetBuffer = DataOwner->AssetBuffer.Get();
+
+    // --- Mark that this frame has new data ---
+    RenderData->bUploadQueuedThisFrame = true;
+
+    /*UE_LOG(LogTemp, Warning, TEXT("[WindField] ProvidePerInstanceData: Prepared %d elements for instance %llu"),
+        RenderData->VelocityGridCount, SystemInstance);*/
 }
 
 void FNDIWindFieldProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance)
@@ -289,48 +381,75 @@ void FNDIWindFieldProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanceD
     FNDIWindFieldRenderData* SourceData = static_cast<FNDIWindFieldRenderData*>(PerInstanceData);
     if (!SourceData)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[WindField] ConsumePerInstanceData: SourceData null for Instance %llu"), Instance);
         return;
     }
 
     FNDIWindFieldRenderData& TargetData = SystemInstancesToProxyData.FindOrAdd(Instance);
-    TargetData = *SourceData;
+
+    // Copy POD fields
+    TargetData.FieldOrigin = SourceData->FieldOrigin;
+    TargetData.CellSize = SourceData->CellSize;
+    TargetData.SizeX = SourceData->SizeX;
+    TargetData.SizeY = SourceData->SizeY;
+    TargetData.SizeZ = SourceData->SizeZ;
+    TargetData.AssetBuffer = SourceData->AssetBuffer;
+    TargetData.bUploadQueuedThisFrame = SourceData->bUploadQueuedThisFrame;
+
+    // Just forward the pointer & size, no allocation/copy
+    TargetData.VelocityGridPtr = SourceData->VelocityGridPtr;
+    TargetData.VelocityGridCount = SourceData->VelocityGridCount;
+
+    /*UE_LOG(LogTemp, Warning, TEXT("[WindField] ConsumePerInstanceData: Instance %llu -> %d elements, zero-copy"),
+        Instance, TargetData.VelocityGridCount);*/
 }
 
 void FNDIWindFieldProxy::PreStage(const FNDIGpuComputePreStageContext& Context)
 {
+    check(IsInRenderingThread());
+
     FNDIWindFieldRenderData* RenderData = SystemInstancesToProxyData.Find(Context.GetSystemInstanceID());
-    
-    if (!RenderData || !AssetBuffer.IsValid())
-    {
+    if (!RenderData || !RenderData->AssetBuffer)
         return;
-    }
 
-    // Prepare DataToUpload from the current RenderData->VelocityGrid
-    const int32 DataSize = RenderData->VelocityGrid.Num() * sizeof(FVector3f);
-    AssetBuffer->DataToUpload.Reset(DataSize);
-    AssetBuffer->DataToUpload.AddUninitialized(DataSize);
-    FMemory::Memcpy(AssetBuffer->DataToUpload.GetData(), RenderData->VelocityGrid.GetData(), DataSize);
+    FNDIWindFieldBuffer* Buffer = RenderData->AssetBuffer;
+    if (!Buffer->VelocityGridBufferRHI.IsValid())
+        return; // Avoid crash if InitRHI not done yet
 
-    if (AssetBuffer->DataToUpload.Num() == 0)
-    {
+    const int32 NumElements = RenderData->VelocityGridCount;
+    if (NumElements == 0 || !RenderData->VelocityGridPtr)
         return;
+
+    //UE_LOG(LogTemp, Warning, TEXT("[WindField::PreStage] Called. NumElements=%d"), NumElements);
+
+#if WITH_EDITOR
+    FString Sample;
+    for (int i = 0; i < FMath::Min(5, NumElements); ++i)
+    {
+        const FVector4f& V = RenderData->VelocityGridPtr[i];
+        Sample += FString::Printf(TEXT("[%.2f, %.2f, %.2f] "), V.X, V.Y, V.Z);
     }
+    //UE_LOG(LogTemp, Warning, TEXT("[WindField::PreStage] First 5 velocities: %s"), *Sample);
+#endif
 
-    FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
-    const uint64 InitialDataSize = AssetBuffer->DataToUpload.Num();
-    const uint64 BufferSize = Align(InitialDataSize, 16);
+    Buffer->NumElements = NumElements;
 
-    FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateByteAddressDesc(BufferSize);
-    ResizeBufferIfNeeded(GraphBuilder, AssetBuffer->VelocityGridBuffer, BufferDesc, TEXT("WindField.VelocityGrid"));
+    FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
-    GraphBuilder.QueueBufferUpload(
-        GraphBuilder.RegisterExternalBuffer(AssetBuffer->VelocityGridBuffer),
-        AssetBuffer->DataToUpload.GetData(),
-        InitialDataSize,
-        ERDGInitialDataFlags::None
+    // Direct memcpy from GT double buffer to GPU buffer
+    void* Dest = RHICmdList.LockBuffer(
+        Buffer->VelocityGridBufferRHI,
+        0,
+        Buffer->NumElements * sizeof(FVector4f),
+        RLM_WriteOnly
     );
+    FMemory::Memcpy(Dest, RenderData->VelocityGridPtr, Buffer->NumElements * sizeof(FVector4f));
+    RHICmdList.UnlockBuffer(Buffer->VelocityGridBufferRHI);
 
-    AssetBuffer->DataToUpload.Empty();
+    RenderData->bUploadQueuedThisFrame = false;
+
+    /*UE_LOG(LogTemp, Warning, TEXT("[WindField::PreStage] Upload complete to RHI buffer=%p"),
+        Buffer->VelocityGridBufferRHI.GetReference());*/
 }
 
 void FNDIWindFieldProxy::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance)
@@ -346,6 +465,117 @@ void FNDIWindFieldProxy::DestroyPerInstanceData(const FNiagaraSystemInstanceID& 
     check(IsInRenderingThread());
 
     SystemInstancesToProxyData.Remove(SystemInstance);
+}
+
+void FNDIWindFieldData::InitializeBufferIfNeeded(int32 NumElements)
+{
+    if (AssetBuffer.IsValid())
+    {
+        // If already initialized with the same or larger size, skip
+        if (AssetBuffer->NumElements >= NumElements && AssetBuffer->bIsInitialized)
+        {
+            return;
+        }
+
+        // Otherwise, release old buffer first
+        ReleaseBuffer();
+    }
+
+    // Create new buffer
+    AssetBuffer = MakeShared<FNDIWindFieldBuffer, ESPMode::ThreadSafe>();
+    AssetBuffer->NumElements = NumElements;
+
+    // This schedules InitRHI on render thread
+    BeginInitResource(AssetBuffer.Get());
+
+    //UE_LOG(LogTemp, Warning, TEXT("[WindFieldData] Created AssetBuffer with %d elements, BeginInitResource called."), NumElements);
+}
+
+void FNDIWindFieldData::ReleaseBuffer()
+{
+    if (AssetBuffer.IsValid())
+    {
+        // Release on render thread safely
+        TSharedPtr<FNDIWindFieldBuffer> BufferToRelease = AssetBuffer;
+        ENQUEUE_RENDER_COMMAND(ReleaseWindFieldBuffer)(
+            [BufferToRelease](FRHICommandListImmediate& RHICmdList)
+            {
+                BufferToRelease->ReleaseResource();
+            });
+
+        AssetBuffer.Reset();
+        //UE_LOG(LogTemp, Warning, TEXT("[WindFieldData] AssetBuffer released."));
+    }
+}
+
+void FNDIWindFieldBuffer::InitRHI(FRHICommandListBase& RHICmdList)
+{
+    // Prevent double initialization
+    if (bIsInitialized)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[WindField::InitRHI] Already initialized, skipping."));
+        return;
+    }
+
+    // Release any stale resources first
+    VelocityGridBufferRHI.SafeRelease();
+    VelocityGridSRV.SafeRelease();
+
+    if (NumElements <= 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[WindField::InitRHI] NumElements is 0. No buffer will be created."));
+        return;
+    }
+
+    const uint32 Stride = sizeof(FVector4f);
+    const uint32 BufferSize = NumElements * Stride;
+
+    FRHIResourceCreateInfo CreateInfo(TEXT("WindField.VelocityGrid"));
+    VelocityGridBufferRHI = RHICmdList.CreateStructuredBuffer(Stride, BufferSize, BUF_ShaderResource | BUF_StructuredBuffer | BUF_Static, CreateInfo);
+
+    if (!VelocityGridBufferRHI.IsValid())
+    {
+        UE_LOG(LogTemp, Error, TEXT("[WindField::InitRHI] Failed to create structured buffer!"));
+        return;
+    }
+
+    // Create SRV for the buffer
+    auto SRVDesc = FRHIViewDesc::CreateBufferSRV();
+    SRVDesc.SetType(FRHIViewDesc::EBufferType::Structured);
+    SRVDesc.SetStride(Stride);
+
+    VelocityGridSRV = RHICmdList.CreateShaderResourceView(VelocityGridBufferRHI, SRVDesc);
+
+    if (!VelocityGridSRV.IsValid())
+    {
+        UE_LOG(LogTemp, Error, TEXT("[WindField::InitRHI] Failed to create SRV for buffer!"));
+        VelocityGridBufferRHI.SafeRelease();
+        return;
+    }
+
+    bIsInitialized = true;
+
+    /*UE_LOG(LogTemp, Warning,
+        TEXT("[WindField::InitRHI] SRV created. NumElements=%d, RHI=%p, SRV=%p"),
+        NumElements,
+        VelocityGridBufferRHI.GetReference(),
+        VelocityGridSRV.GetReference()
+    );*/
+}
+
+void FNDIWindFieldBuffer::ReleaseRHI()
+{
+    if (VelocityGridBufferRHI.IsValid() || VelocityGridSRV.IsValid())
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("[WindField::ReleaseRHI] Releasing GPU resources. Buffer=%p SRV=%p"),
+            VelocityGridBufferRHI.GetReference(),
+            VelocityGridSRV.GetReference());
+    }
+
+    VelocityGridBufferRHI.SafeRelease();
+    VelocityGridSRV.SafeRelease();
+    bIsInitialized = false;
 }
 
 #if WITH_EDITOR

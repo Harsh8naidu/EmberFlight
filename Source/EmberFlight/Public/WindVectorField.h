@@ -26,7 +26,7 @@ public:
 
     void ResetField();
 
-    TArray<FVector> GetVelocityGrid() const { return VelocityGrid; }
+    const TArray<FVector>& GetVelocityGrid() const { return VelocityGrid; }
 
     // ======= Editable Parameters =======
 
@@ -72,7 +72,9 @@ public:
 
 protected:
     virtual void PostLoad() override;
+#if WITH_EDITOR
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 
 private:
     float MaxTurbulence = 20.0;

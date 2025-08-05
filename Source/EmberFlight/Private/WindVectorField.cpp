@@ -175,7 +175,7 @@ void UWindVectorField::Update(float DeltaTime)
     Advect(DeltaTime);
     DecayVelocity(DeltaTime);
 
-    float Time = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+    //float Time = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 
     for (int Z = 0; Z < SizeZ; ++Z)
     {

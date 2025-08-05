@@ -52,13 +52,14 @@ public:
 
 struct FNDIWindFieldBuffer : public FRenderResource
 {
-    /** Velocity data buffer **/
-    TRefCountPtr<FRDGPooledBuffer> VelocityGridBuffer;
-
-    /** Raw velocity data to upload **/
-    TArray<uint8> DataToUpload;
+    FBufferRHIRef VelocityGridBufferRHI; // Persistent GPU buffer
+    FShaderResourceViewRHIRef VelocityGridSRV; // SRV for Niagara shader binding
 
     int32 NumElements = 0;
+    bool bIsInitialized = false;
+
+    virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
+    virtual void ReleaseRHI() override;
 };
 
 // GPU Shader Parameters Struct
@@ -68,10 +69,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNDIWindFieldShaderParameters, )
     SHADER_PARAMETER(uint32, User_WindField_SizeX)
     SHADER_PARAMETER(uint32, User_WindField_SizeY)
     SHADER_PARAMETER(uint32, User_WindField_SizeZ)
-    SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float3>, User_WindField_VelocityGridSRV)
+    SHADER_PARAMETER_SRV(StructuredBuffer<float4>, User_WindField_VelocityGridSRV)
 END_SHADER_PARAMETER_STRUCT()
 
-// Per-instance data struct
+struct FNDIWindFieldData;
+
+// Minimal per-instance data, just references and state, no ownership of buffer
 USTRUCT()
 struct FNDIWindFieldInstanceData
 {
@@ -79,7 +82,19 @@ struct FNDIWindFieldInstanceData
 
     UPROPERTY()
     UWindVectorField* WindField = nullptr;
-    TArray<FVector3f> VelocityGrid;
+    
+    // Pointer to the shared per-instance data that owns the buffer and CPU grids
+    FNDIWindFieldData* InstanceDataOwner = nullptr;
+
+    int32 WriteIndex = 0;
+
+    // Destructor to ensure breaking pointer links (not really needed tho but safe)
+    void Reset()
+    {
+        WindField = nullptr;
+        InstanceDataOwner = nullptr;
+        WriteIndex = 0;
+    }
 };
 
 struct FNDIWindFieldRenderData
@@ -89,14 +104,36 @@ struct FNDIWindFieldRenderData
     int32 SizeX;
     int32 SizeY;
     int32 SizeZ;
-    TArray<FVector3f> VelocityGrid;
+
+    const FVector4f* VelocityGridPtr = nullptr; // Zero-copy: Only a pointer and count now
+    int32 VelocityGridCount = 0;
+
+    FNDIWindFieldBuffer* AssetBuffer = nullptr; // Raw pointer to GPU buffer, not owning - managed by FNDIWindFieldData
+    bool bUploadQueuedThisFrame = false;
+};
+
+// This struct owns the CPU velocity arrays AND the GPU buffer resource
+struct FNDIWindFieldData
+{
+    // WindField pointer, set once per instance init
+    UPROPERTY()
+    UWindVectorField* WindField = nullptr;
+
+    // Double-buffered velocity grids stored on CPU
+    TArray<FVector4f> VelocityGridBuffers[2];
+
+    int32 WriteIndex = 0;
+
+    // Shared GPU buffer resource used for rendering (owned here, shared with render thread)
+    TSharedPtr<FNDIWindFieldBuffer, ESPMode::ThreadSafe> AssetBuffer;
+
+    // Initialize and manage buffer lifecycle here (e.g. Init, Release functions)
+    void InitializeBufferIfNeeded(int32 NumElements);
+    void ReleaseBuffer();
 };
 
 struct FNDIWindFieldProxy : public FNiagaraDataInterfaceProxy
 {
-    // Your buffer struct, like GeometryCollection uses
-    TSharedPtr<FNDIWindFieldBuffer, ESPMode::ThreadSafe> AssetBuffer;
-
     /** List of proxy data for each system instances **/
     TMap<FNiagaraSystemInstanceID, FNDIWindFieldRenderData> SystemInstancesToProxyData;
 

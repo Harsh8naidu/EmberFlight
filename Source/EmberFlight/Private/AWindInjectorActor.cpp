@@ -15,7 +15,10 @@ void AWindInjectorActor::BeginPlay()
     Super::BeginPlay();
     
     InjectorLocation = GetActorLocation();
-    WindField->FieldOrigin = InjectorLocation;
+    if (WindField)
+    {
+        WindField->FieldOrigin = InjectorLocation;
+    }
 }
 
 void AWindInjectorActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -63,7 +66,11 @@ void AWindInjectorActor::PostEditMove(bool bFinished)
 
     FlushPersistentDebugLines(GetWorld());
     InjectorLocation = GetActorLocation();
-    WindField->FieldOrigin = InjectorLocation;
+    if (WindField)
+    {
+        WindField->FieldOrigin = InjectorLocation;
+    }
+    
     DrawTemporaryDebugSphere();
 }
 
@@ -72,7 +79,11 @@ void AWindInjectorActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
     Super::PostEditChangeProperty(PropertyChangedEvent);
     FlushPersistentDebugLines(GetWorld());
     InjectorLocation = GetActorLocation();
-    WindField->FieldOrigin = InjectorLocation;
+    if (WindField) 
+    {
+        WindField->FieldOrigin = InjectorLocation;
+    }
+    
     DrawTemporaryDebugSphere();
 }
 #endif

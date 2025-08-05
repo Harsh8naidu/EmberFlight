@@ -37,12 +37,13 @@ protected:
     virtual void Tick(float DeltaTime) override;  
     virtual void BeginPlay() override;  
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-    virtual void PostEditMove(bool bFinished);
     virtual void OnConstruction(const FTransform& Transform);
     void DrawTemporaryDebugSphere();
     bool IsInEditorMode() const;
-    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
+    
 #if WITH_EDITOR
+    virtual void PostEditMove(bool bFinished);
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
     virtual bool ShouldTickIfViewportsOnly() const override;
 #endif
 

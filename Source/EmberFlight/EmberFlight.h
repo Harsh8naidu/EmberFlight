@@ -11,8 +11,10 @@
 class FEmberFlightModule : public FDefaultGameModuleImpl
 {
 public:
+#if WITH_EDITOR
     virtual void StartupModule() override;
     virtual void ShutdownModule() override;
+#endif
 };
 
 /**
